@@ -37,8 +37,8 @@ Number Format: {{ utils.format_number(total_amount, 1) }}
 Items: {{ helpers.pluralize(item_count, 'item', 'items') }}
 
 [cyan]4. Calculations[/cyan]
-Items Total: ${{ "%.2f"|format(helpers.calculate_total(eval(items), 'price')) }}
-Average Price: ${{ "%.2f"|format(helpers.average(eval(items), 'price')) }}
+Items Total: ${{ "%.2f"|format(helpers.calculate_total([{'price': 29.99}, {'price': 49.99}, {'price': 19.99}], 'price')) }}
+Average Price: ${{ "%.2f"|format(helpers.average([29.99, 49.99, 19.99])) }}
 Success Rate: {{ helpers.percentage(85, 100, 1) }}
 
 [cyan]5. Lists & Text[/cyan]

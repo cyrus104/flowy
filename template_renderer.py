@@ -24,7 +24,7 @@ from template_parser import TemplateDefinition, TemplateParser
 from save_file_manager import SaveFileManager, save_file_manager
 
 # Module loader integration
-from module_loader import load_modules_for_jinja, ModuleLoaderError, ModuleLoader
+from module_loader import load_modules_for_jinja, ModuleLoaderError
 
 # Add module loader import
 from module_loader import load_modules_for_jinja, ModuleLoaderError
@@ -355,7 +355,6 @@ class TemplateRenderer:
         self.parser = TemplateParser(templates_dir)
         self.save_manager = SaveFileManager(saves_dir)
         self.color_formatter = ColorFormatter()
-        self.module_loader = ModuleLoader(configuration.MODULES_DIR)  # Add module loader
         self._env_cache = {}
     
     def render(self, template_def: TemplateDefinition, 

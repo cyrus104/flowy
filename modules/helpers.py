@@ -84,10 +84,34 @@ def percentage(value: float, total: float, decimals: int = 1) -> str:
     return f'{100 * value / total:.{decimals}f}%'
 
 
-def average(numbers: List[Any]) -> float:
-    """Calculate average of numeric list."""
-    numbers = [n for n in numbers or [] if isinstance(n, (int, float))]
-    return sum(numbers) / len(numbers) if numbers else 0.0
+def average(numbers: List[Any], key: Optional[str] = None) -> float:
+    """
+    Calculate average of numeric values in a list.
+    
+    Args:
+        numbers: List of numbers or dicts with numeric values
+        key: If provided, extract value from dict using this key
+    
+    Returns:
+        Average of numeric values (0.0 for empty list).
+    
+    Examples:
+        average([10, 20, 30])                    → 20.0
+        average([{'price': 10}, {'price': 20}])  → 15.0
+    """
+    total = 0.0
+    count = 0
+    for item in numbers or []:
+        try:
+            if key and isinstance(item, dict):
+                value = item.get(key)
+            else:
+                value = item
+            total += float(value)
+            count += 1
+        except (ValueError, TypeError):
+            continue  # Skip non-numeric values
+    return total / count if count > 0 else 0.0
 
 
 def join_with_and(items: List[str], separator: str = ', ', final: str = ' and ') -> str:

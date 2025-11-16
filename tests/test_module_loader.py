@@ -109,12 +109,14 @@ def test_func():
             loader.load_module('syntax_error')
     
     def test_load_modules_for_jinja(self):
-        """Test Jinja2 integration convenience function."""
+        """Test Jinja2 integration convenience function with temp dir."""
         content = 'def test(): pass'
         self.create_test_module('utils', content)
         self.create_test_module('helpers', content)
         
-        modules_dict = load_modules_for_jinja()
+        # Use instance loader for temp directory
+        loader = ModuleLoader(str(self.modules_dir))
+        modules_dict = loader.get_modules_dict()
         self.assertIn('utils', modules_dict)
         self.assertIn('helpers', modules_dict)
         self.assertIsInstance(modules_dict['utils'], ModuleProxy)

@@ -76,13 +76,11 @@ class ModuleLoader:
         self._lock = threading.RLock()
         self._module_names = []
         
-        # Validate directory
-        if not self.modules_dir.exists():
-            raise ModuleNotFoundError(f"Modules directory not found: {self.modules_dir}")
-        if not self.modules_dir.is_dir():
-            raise ModuleNotFoundError(f"Modules path is not a directory: {self.modules_dir}")
-        
-        self._discover_modules()
+        # Graceful handling of missing/non-directory
+        if self.modules_dir.exists() and self.modules_dir.is_dir():
+            self._discover_modules()
+        else:
+            self._module_names = []
     
     def _discover_modules(self) -> None:
         """Scan modules directory for .py files."""
@@ -152,8 +150,8 @@ class ModuleLoader:
         return self._module_names
 
 
-# Default instance
-module_loader = ModuleLoader(MODULES_DIR)
+# Lazy global instance (created on first use)
+_module_loader = None
 
 
 def load_modules_for_jinja() -> Dict[str, ModuleProxy]:
@@ -161,6 +159,12 @@ def load_modules_for_jinja() -> Dict[str, ModuleProxy]:
     Convenience function for Jinja2 globals.
     
     Returns dictionary of ModuleProxy objects ready for env.globals.
+    Never raises exceptions - returns empty dict if modules unavailable.
     """
-    global module_loader
-    return module_loader.get_modules_dict()
+    global _module_loader
+    try:
+        if _module_loader is None:
+            _module_loader = ModuleLoader(MODULES_DIR)
+        return _module_loader.get_modules_dict()
+    except (ModuleLoaderError, FileNotFoundError, NotADirectoryError):
+        return {}

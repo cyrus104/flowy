@@ -14,6 +14,7 @@ Template Assistant provides a Metasploit-inspired interactive shell for renderin
 - 📜 **Command audit trail** (.history file)
 - 🐍 **Python module integration** (`{{ utils.format_date() }}`)
 - 🎨 **Rich terminal output** with colors and formatting
+- 📐 **Adaptive display** with automatic terminal width detection and intelligent word wrapping
 
 ## 🚀 Quick Start
 
@@ -22,60 +23,181 @@ Template Assistant provides a Metasploit-inspired interactive shell for renderin
 pip install -r requirements.txt
 ```
 
-### 2. Create a Template
-Create `templates/example.template`:
-```yaml
-VARS:
-  - client_name:
-      description: Client organization
-  - report_type:
-      description: Report type
-      options: ['daily', 'weekly', 'monthly']
-
-### TEMPLATE ###
-
-[bold]Report for {{ client_name }}[/bold]
-====================================
-
-Type: [green]{{ report_type }}[/green]
-
-{% if report_type == 'weekly' %}
-Weekly summary generated on {{ current_date }}.
-{% endif %}
-```
-
-### 3. Launch Interactive Shell
+### 2. Launch Interactive Shell
 ```bash
 python main.py
 ```
 
-### 4. Basic Usage
+### 3. Example Session
 ```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       TEMPLATE ASSISTANT v1.0.0                        ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+[cyan]Configuration:[/cyan]
+  Templates: ./templates
+  Saves:     ./saves
+  Modules:   ./modules
+  State:     .state
+  History:   .history
+
 template-assistant > use example.template
-template-assistant (example.template) > ls
+[green]Loaded: example.template[/green]
 template-assistant (example.template) > set client_name "Acme Corp"
-template-assistant (example.template) > set report_type weekly
-template-assistant (example.template) > render
+[green]Set client_name = Acme Corp[/green]
+template-assistant (example.template) > r
+[bold]Report for Acme Corp[/bold]
+====================================
+Type: [green]weekly[/green]
+template-assistant (example.template) > ls
 ```
 
-## 📁 Project Structure
+### 🚀 Quick Launch Mode
+
+Start Template Assistant with pre-loaded template and save file:
+
+```bash
+# Load template and save file, auto-render, then enter interactive mode
+python main.py --template example.template --save example.save
+
+# Load only template, enter interactive mode
+python main.py --template reports/monthly.template
+
+# Normal interactive mode (no pre-loading)
+python main.py
+```
+
+**Quick launch workflow:**
+1. Displays startup banner and configuration
+2. Loads specified template (and save file if provided)
+3. Auto-renders output if save file is provided
+4. Drops into interactive mode for further commands
+
+## 💻 Interactive Shell
+
+**Metasploit-inspired CLI** with **tab completion**, **command aliases**, **rich output**, **session persistence**, and **adaptive display**.
+
+### ⌨️ Tab Completion Contexts
+
+| Context | Trigger | Examples |
+|---------|---------|----------|
+| **Commands** | Empty input or space | `r↹` → `render`, `ll↹` → `ls` |
+| **Templates** | `use ` | `use rep↹` → `reports/monthly.template` |
+| **Saves** | `load `, `save ` | `load cli↹` → `clients/demo.save` |
+| **Variables** | `set `, `unset ` | `set cli↹` → `client_name` |
+| **Options** | `set var ` | `set type↹` → `daily`, `weekly` |
+
+### 📋 Command Reference
+
+| Command | Aliases | Syntax | Description |
+|---------|---------|---------|-------------|
+| `use` | `load_template` | `use <template> [save]` | Load template (+ optional auto-render) |
+| `load` | - | `load <save>` | Load variables from save file |
+| `set` | - | `set <var> <value>` | Set variable (tab-complete vars/options) |
+| `unset` | - | `unset <var>` | Remove variable |
+| `save` | - | `save <save>` | Save current variables |
+| `render` | `r`, `re` | `render` | Render current template (auto-wrapped to terminal width) |
+| `ls` | `ll` | `ls` | Show variables table (adaptive column widths) |
+| `revert` | - | `revert` | Toggle previous template state |
+| `exit` | - | `exit` | Exit shell |
+
+**Pro Tips:**
+- `use template.save` → loads + auto-renders
+- `python main.py --template X --save Y` → quick launch with auto-render
+- `Ctrl+C` cancels input, `Ctrl+D` exits
+- `revert` toggles between template states
+- Session auto-saves to `.state`
+
+## � Display & Output Management
+
+The Template Assistant automatically adapts its output to your terminal dimensions for optimal readability.
+
+### Terminal Width Detection
+
+- **Automatic Detection**: On startup, the application detects your terminal width using `shutil.get_terminal_size()`
+- **Dynamic Updates**: Window resize events (SIGWINCH on Unix-like systems) automatically update the display width
+- **Fallback**: If detection fails (e.g., piped output), defaults to 80 columns
+- **Configuration**: Set `AUTO_DETECT_WIDTH = False` in `configuration.py` to always use `DEFAULT_WIDTH`
+
+### Intelligent Word Wrapping
+
+All rendered output is automatically wrapped to fit your terminal width:
+
+- **Color Preservation**: ANSI color codes and formatting (bold, backgrounds) are preserved across line breaks
+- **No Horizontal Scrolling**: Long lines wrap intelligently at word boundaries
+- **Configurable**: Disable with `WORD_WRAP_ENABLED = False` in `configuration.py`
+
+**Example:**
+```
+# Terminal Width: 80 columns
+[green][bold]Client Report[/bold][/green]
+================================================================================
+
+This is a very long line of text that will automatically wrap to the next line
+when it reaches the edge of the terminal window, maintaining proper formatting
+and ensuring readability without requiring horizontal scrolling.
+```
+
+### Adaptive Table Formatting
+
+The `ls` command displays variable tables that automatically adjust to your terminal:
+
+- **Dynamic Column Widths**: Columns expand/contract based on content and available space
+- **Smart Truncation**: Long values are truncated with "..." when necessary
+- **Minimum Widths**: Ensures columns remain readable even in narrow terminals
+- **Configuration**: Adjust `MAX_TABLE_COLUMN_WIDTH` and `MIN_TABLE_COLUMN_WIDTH` in `configuration.py`
+
+**Example:**
+```
+# Wide Terminal (120+ columns)
+Name              Current Value              Description                           Default    Options
+----              -------------              -----------                           -------    -------
+client_name       Acme Corporation           Client organization name              None       -
+report_type       monthly                    Type of report to generate            weekly     [daily, weekly, monthly]
+
+# Narrow Terminal (80 columns)
+Name           Current        Description                    Default  Options
+----           -------        -----------                    -------  -------
+client_name    Acme Corp...   Client organization name       None     -
+report_type    monthly        Type of report to generate     weekly   [daily...]
+```
+
+### Display Configuration
+
+Customize display behavior in `configuration.py`:
+
+```python
+# Terminal Width & Wrapping
+AUTO_DETECT_WIDTH = True           # Automatically detect terminal width
+DEFAULT_WIDTH = 80                 # Fallback width if detection fails
+WORD_WRAP_ENABLED = True           # Enable intelligent word wrapping
+PRESERVE_FORMATTING_ON_WRAP = True # Maintain colors/bold across wrapped lines
+
+# Table Formatting
+MAX_TABLE_COLUMN_WIDTH = 40        # Maximum width for table columns
+MIN_TABLE_COLUMN_WIDTH = 10        # Minimum width for table columns
+TRUNCATE_INDICATOR = "..."         # Indicator for truncated content
+```
+
+## �📁 Project Structure
 
 ```
 template-assistant/
-├── configuration.py          # App settings & environment vars
-├── main.py                  # Interactive shell entry point
-├── state_manager.py         # Session persistence (.state)
-├── history_logger.py        # Command audit trail (.history)
-├── template_parser.py       # Template parsing & validation
-├── template_renderer.py     # Jinja2 rendering engine with color formatting, subtemplate support, undefined handling
-├── module_loader.py         # Dynamic Python module loading for templates
-├── saves/                   # .save variable files
-├── templates/               # .template files
-├── modules/                 # Python functions for templates (utils.py, helpers.py)
-├── tests/                   # Unit tests
-├── requirements.txt         # Python dependencies
-├── README.md                # This file
-└── AGENTS.md                # Detailed design spec
+├── main.py                   # Entry point with argparse
+├── configuration.py          # Settings & aliases
+├── interactive_shell.py      # Interactive CLI with tab completion
+├── shell_completers.py       # Context-aware completion logic
+├── display_manager.py        # Terminal width detection & adaptive formatting
+├── state_manager.py          # Session persistence (.state)
+├── history_logger.py         # Command audit (.history)
+├── template_parser.py        # .template parsing
+├── template_renderer.py      # Jinja2 engine + colors
+├── module_loader.py          # Python modules (utils.py, helpers.py)
+├── saves/                    # .save files
+├── templates/                # .template files
+├── modules/                  # Python functions
+├── tests/                    # Unit tests
+└── requirements.txt
 ```
 
 ## 🐍 Python Module System
@@ -270,6 +392,23 @@ python -m unittest tests.test_state_manager
 - [Full Design Specification](AGENTS.md)
 - [Jinja2 Documentation](https://jinja.palletsprojects.com/)
 - [Configuration Options](configuration.py)
+
+## 🔧 Troubleshooting
+
+### Display Issues
+
+**Q: Output is not wrapping correctly**
+- Check that `WORD_WRAP_ENABLED = True` in `configuration.py`
+- Verify your terminal supports ANSI color codes
+- Try resizing your terminal window to trigger width re-detection
+
+**Q: Tables are too narrow/wide**
+- Adjust `MAX_TABLE_COLUMN_WIDTH` and `MIN_TABLE_COLUMN_WIDTH` in `configuration.py`
+- Ensure `AUTO_DETECT_WIDTH = True` for automatic detection
+
+**Q: Colors are broken after wrapping**
+- Set `PRESERVE_FORMATTING_ON_WRAP = True` in `configuration.py`
+- Check that your terminal supports ANSI escape sequences
 
 ## License
 
