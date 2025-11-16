@@ -1,0 +1,49 @@
+VARS:
+  - report_date:
+      description: Date string for formatting demo
+      default: "2024-01-15"
+  - description:
+      description: Long text for truncation demo
+      default: "This is a comprehensive report covering all aspects of the quarterly performance metrics, key achievements, challenges faced, and strategic recommendations for the upcoming period. The analysis includes detailed financial breakdowns, customer satisfaction scores, operational efficiency improvements, and market positioning updates."
+  - items:
+      description: List of items with prices for total calculation
+      default: "[{'name': 'Widget A', 'price': 29.99}, {'name': 'Widget B', 'price': 49.99}, {'name': 'Widget C', 'price': 19.99}]"
+  - total_amount:
+      description: Total amount for currency formatting
+      default: 1234.56
+  - item_count:
+      description: Number of items for pluralization
+      default: 5
+
+### TEMPLATE ###
+
+[bold][green]Python Module Demo[/green][/bold]
+{{ "=" * 60 }}
+
+[cyan]1. Date Formatting[/cyan]
+Report Date: {{ utils.format_date(report_date, '%B %d, %Y') }}
+Long Format: {{ utils.format_date(report_date, '%A, %B %d, %Y') }}
+
+[cyan]2. Text Processing[/cyan]
+Original Length: {{ description | length }} characters
+Truncated: {{ utils.truncate(description, 80) }}
+Word Count: {{ utils.word_count(description) }} words
+Slug: {{ utils.slugify("Module Demo Report 2024!") }}
+Capitalized: {{ utils.capitalize_words("hello world template") }}
+
+[cyan]3. Numbers & Currency[/cyan]
+Total Amount: {{ helpers.format_currency(total_amount) }}
+Number Format: {{ utils.format_number(total_amount, 1) }}
+Items: {{ helpers.pluralize(item_count, 'item', 'items') }}
+
+[cyan]4. Calculations[/cyan]
+Items Total: ${{ "%.2f"|format(helpers.calculate_total(eval(items), 'price')) }}
+Average Price: ${{ "%.2f"|format(helpers.average(eval(items), 'price')) }}
+Success Rate: {{ helpers.percentage(85, 100, 1) }}
+
+[cyan]5. Lists & Text[/cyan]
+Item List: {{ helpers.join_with_and(['Widget A', 'Widget B', 'Widget C']) }}
+
+[bold][green]End of Module Demo[/green][/bold]
+{{ "=" * 60 }}
+Generated on: {{ utils.format_date(report_date) }}

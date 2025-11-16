@@ -1,0 +1,21 @@
+VARS:
+  - header_title:
+      description: Title for the header section
+      default: "Document Header"
+  - show_logo:
+      description: Whether to display logo
+      default: true
+      options: [true, false]
+  - logo_path:
+      description: Path to logo image file
+
+### TEMPLATE ###
+
+[bold]{{ header_title }}[/bold]
+{{ '=' * 50 }}
+
+{% if show_logo and logo_path %}
+Logo: {{ logo_path }}
+{% endif %}
+
+Generated: {{ current_date | default('N/A') }}

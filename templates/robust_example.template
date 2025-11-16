@@ -1,0 +1,25 @@
+# Template for demonstrating robust VARS handling
+# Comments are now allowed before the VARS section
+
+    VARS:
+  - project_name:
+      description: Name of the project
+      default: "My Project"
+  
+  - author:
+      description: Author of the project
+  
+  - features:
+      description: List of project features
+
+### TEMPLATE ###
+
+[bold]{{ project_name }}[/bold]
+================================
+
+Author: {{ author }}
+
+Features:
+{% for feature in features %}
+  - {{ feature }}
+{% endfor %}

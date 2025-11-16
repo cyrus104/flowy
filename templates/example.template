@@ -1,0 +1,106 @@
+VARS:
+  # Minimal variable definition - just a description
+  - client_name:
+      description: Name of the client organization
+  
+  # Variable with description and default value
+  - report_type:
+      description: Type of report to generate
+      default: weekly
+      options: ['daily', 'weekly', 'monthly', 'quarterly']
+  
+  # Variable with description and options list
+  - include_summary:
+      description: Include executive summary section
+      default: 'yes'
+      options: ['yes', 'no']
+  
+  # Variable with all fields (description, default, options)
+  - output_format:
+      description: Format for the generated report
+      default: 'pdf'
+      options: ['pdf', 'html', 'markdown', 'docx']
+  
+  # Variable for list input (no options, user provides list)
+  - project_list:
+      description: List of projects to include in report
+
+### TEMPLATE ###
+
+{# This is a Jinja2 template demonstrating various features #}
+
+[bold]=================================================================================[/bold]
+[bold]Client Report for {{ client_name }}[/bold]
+[bold]=================================================================================[/bold]
+
+Report Type: [green]{{ report_type | upper }}[/green]
+Generated: {{ current_date | default('2024-01-15') }}
+Format: {{ output_format }}
+
+{% if include_summary == 'yes' %}
+[green][bold]Executive Summary[/bold][/green]
+-----------------
+This {{ report_type }} report provides a comprehensive overview of all active
+projects and their current status. Key metrics and deliverables are highlighted
+below for quick reference.
+
+{# Color formatting examples:
+   [red]text[/red] - Red colored text
+   [bg:blue]text[/bg:blue] - Blue background
+   [bold]text[/bold] - Bold text
+   [green][bold]text[/bold][/green] - Green and bold
+#}
+{% endif %}
+
+[bold]Projects Overview:[/bold]
+==================
+
+{% if project_list %}
+{% for project in project_list %}
+  {{ loop.index }}. [cyan]{{ project }}[/cyan]
+     Status: Active
+     Progress: {{ (loop.index * 25) }}% complete
+{% endfor %}
+{% else %}
+  [red]No projects specified. Please set the project_list variable.[/red]
+{% endif %}
+
+[bold]Report Details:[/bold]
+================
+
+This is a {{ report_type }} report generated in {{ output_format | upper }} format.
+
+{% if report_type == 'daily' %}
+Daily reports focus on immediate tasks and today's accomplishments.
+{% elif report_type == 'weekly' %}
+Weekly reports provide a 7-day overview of progress and upcoming milestones.
+{% elif report_type == 'monthly' %}
+Monthly reports offer comprehensive analysis of the past month's performance.
+{% elif report_type == 'quarterly' %}
+Quarterly reports present strategic insights and long-term trend analysis.
+{% endif %}
+
+{# Demonstrating undefined variable handling #}
+{% if contact_email is undefined %}
+[yellow]Note: Contact email not specified. Set 'contact_email' variable to include.[/yellow]
+{% else %}
+For questions, contact: {{ contact_email }}
+{% endif %}
+
+[bold]=================================================================================[/bold]
+[green]End of Report[/green]
+[bold]=================================================================================[/bold]
+
+{# 
+Template Features Demonstrated:
+1. Variable substitution: {{ variable_name }}
+2. Filters: {{ variable | filter }}
+3. Conditionals: {% if condition %}...{% endif %}
+4. Loops: {% for item in list %}...{% endfor %}
+5. Color formatting: [color]text[/color]
+6. Background colors: [bg:color]text[/bg:color]
+7. Text formatting: [bold]text[/bold]
+8. Default values: {{ variable | default('fallback') }}
+9. Undefined variable checking: {% if variable is undefined %}
+10. Loop variables: {{ loop.index }}
+#}

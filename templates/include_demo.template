@@ -1,0 +1,21 @@
+VARS:
+  - document_title:
+      description: Main document title
+      default: "Sample Document"
+  - author:
+      description: Document author name
+  - content:
+      description: Main document content
+
+### TEMPLATE ###
+
+{% include 'subtemplate_example.template' %}
+
+[bold]Main Content[/bold]
+{{ '=' * 50 }}
+
+Author: [cyan]{{ author }}[/cyan]
+
+{{ content }}
+
+[green]End of Document[/green]

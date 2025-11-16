@@ -1,0 +1,26 @@
+# Template Assistant - Python Dependencies
+# 
+# Core Template Engine
+Jinja2>=3.1.0
+# Template rendering engine with control flow and variable substitution
+
+# Interactive CLI Interface
+prompt_toolkit>=3.0.0
+# Advanced command-line interface with tab completion, history, and syntax highlighting
+
+# Configuration & Data Parsing
+PyYAML>=6.0
+# YAML parser for template VARS section parsing
+
+# Terminal Color Support
+colorama>=0.4.6
+# Cross-platform terminal color formatting (Windows compatibility)
+
+
+# Standard Library Modules (included with Python, not listed here):
+# - os              Environment variables and path operations
+# - configparser    INI-format save file parsing
+# - shutil          Terminal size detection
+# - textwrap        Word wrapping functionality
+# - json            State file serialization
+# - argparse        Command-line argument parsing

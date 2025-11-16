@@ -1,0 +1,88 @@
+# Example Save File for Template Assistant
+# 
+# Save files use INI format with section hierarchy:
+# [general] - applies to ALL templates (unless overridden)
+# [template/path.template] - template-specific variables
+# Template-specific sections OVERRIDE [general] values
+#
+# Subdirectories supported: saves/projects/client.save
+# Subtemplates auto-load context: [common/header.template]
+
+# =============================================================================
+# GENERAL SECTION - Applies to all templates
+# =============================================================================
+[general]
+company_name = Example Corporation
+author = Template Assistant User
+date = 2024-01-15
+debug_mode = false
+default_format = pdf
+
+# =============================================================================
+# EXAMPLE.TEMPLATE - Variables for templates/example.template
+# =============================================================================
+[example.template]
+client_name = Acme Corporation          # Overrides general company_name for this template
+report_type = monthly                   # From VARS options: ['daily','weekly','monthly']
+include_summary = yes                   # Boolean: overrides default
+output_format = html                    # Overrides general default_format
+project_list = ['Project Alpha', 'Project Beta']  # List as YAML string (parsed by template engine)
+
+# =============================================================================
+# MONTHLY REPORT - Nested template path example
+# =============================================================================
+[reports/monthly.template]
+report_date = 2024-01-15
+client_name = Monthly Client Inc        # Different client for monthly reports
+report_frequency = monthly
+include_charts = true
+chart_type = bar
+
+# =============================================================================
+# SUBTEMPLATE - Automatically loaded when included
+# =============================================================================
+[common/header.template]
+logo_path = ./logos/company.png
+title = Official Report
+show_date = true
+header_color = blue
+
+[common/footer.template]
+contact_email = reports@example.com
+footer_text = Confidential - Internal Use Only
+version = 1.0
+
+# =============================================================================
+# SUBTEMPLATE EXAMPLE - Variables for subtemplate_example.template
+# =============================================================================
+[subtemplate_example.template]
+header_title = Project Status Report
+show_logo = true
+logo_path = ./logos/project-logo.png
+current_date = 2024-01-15
+
+# =============================================================================
+# INCLUDE DEMO - Variables for include_demo.template (with subtemplate)
+# =============================================================================
+[include_demo.template]
+document_title = Quarterly Review Document
+author = Jane Smith
+content = This document provides a comprehensive overview of the quarterly performance metrics and key achievements.
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+# To use these variables:
+# 
+# 1. Interactive shell: `load example.save`
+# 2. For specific template: `use example.template` then `load example.save`
+# 3. Subtemplates automatically get their section context
+#
+# Variable hierarchy (template wins):
+# [general.company_name] → [example.template.client_name] ✓ Acme Corporation
+#
+# Type coercion examples:
+# debug_mode = false → boolean False
+# port = 8080 → integer 8080
+# pi = 3.14159 → float 3.14159
+# name = John Doe → string "John Doe"
