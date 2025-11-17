@@ -53,7 +53,13 @@ def _get_variable_options(template_def, var_name: str) -> List[str]:
     if template_def is None or var_name not in template_def.variables:
         return []
     var_def = template_def.variables[var_name]
-    return getattr(var_def, 'options', [])
+    options = getattr(var_def, 'options', [])
+    if not options:
+        return []
+    try:
+        return list(options)
+    except TypeError:
+        return []
 
 
 def _parse_command_line(text: str) -> tuple[str, List[str]]:
