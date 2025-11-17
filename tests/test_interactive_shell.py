@@ -115,13 +115,133 @@ class TestShellCompleters(unittest.TestCase):
         self.create_test_template('docs/guide.template')
         
         completer = ShellCompleter()
-        class MockDocument:
-            text_before_cursor = 'use rep'
         
-        completions = list(completer.get_completions(MockDocument(), None))
-        self.assertIn('report.template', [c.text for c in completions])
+        # Test 'use ' with space should complete templates, not commands
+        class MockDocumentSpace:
+            text_before_cursor = 'use '
+            current_line_before_cursor = 'use '
+        doc = MockDocumentSpace()
+        completions = list(completer.get_completions(doc, None))
+        completion_texts = [c.text for c in completions]
+        # Should show template names without .template extension
+        self.assertIn('report', completion_texts)
+        self.assertIn('docs/guide', completion_texts)
+        # Should NOT show commands
+        self.assertNotIn('render', completion_texts)
+        self.assertNotIn('load', completion_texts)
+        
+        # Test 'use rep' should filter templates
+        class MockDocumentPartial:
+            text_before_cursor = 'use rep'
+            current_line_before_cursor = 'use rep'
+        doc = MockDocumentPartial()
+        completions = list(completer.get_completions(doc, None))
+        completion_texts = [c.text for c in completions]
+        self.assertIn('report', completion_texts)
+        self.assertNotIn('docs/guide', completion_texts)
+    
+    def test_save_completion_for_use_command(self):
+        """Test save file completion as second argument for 'use' command."""
+        self.create_test_template('report.template')
+        (self.saves_dir / 'client_a.save').write_text('[general]\nname=Test')
+        (self.saves_dir / 'project_x.save').write_text('[general]\nname=Test')
+        
+        completer = ShellCompleter()
+        
+        # Test 'use report ' should complete save files
+        class MockDocument:
+            text_before_cursor = 'use report '
+            current_line_before_cursor = 'use report '
+        doc = MockDocument()
+        completions = list(completer.get_completions(doc, None))
+        completion_texts = [c.text for c in completions]
+        # Should show save names without .save extension
+        self.assertIn('client_a', completion_texts)
+        self.assertIn('project_x', completion_texts)
+    
+    def test_extension_optional_use_command(self):
+        """Test cmd_use handles template names without .template extension."""
+        # Create template without relying on setUp
+        example_template = self.templates_dir / 'example.template'
+        example_template.write_text("""
+VARS:
+  - title:
+      description: Example title
 
+### TEMPLATE ###
+{{ title }}
+        """)
 
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch('interactive_shell.state_manager.set_template'), \
+             patch('interactive_shell.save_file_manager'), \
+             patch('interactive_shell.history_logger'):
+            
+            shell = InteractiveShell()
+            
+            # Test loading without extension
+            shell.cmd_use(['example'])
+            shell.template_parser.parse.assert_called_once()
+            # Should have resolved to example.template
+            self.assertIsNotNone(shell.current_template)
+    
+    def test_extension_optional_load_command(self):
+        """Test cmd_load handles save files without .save extension."""
+        # Create save file
+        example_save = self.saves_dir / 'example.save'
+        example_save.write_text('[general]\ntitle=Test')
+
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch('interactive_shell.state_manager'), \
+             patch('interactive_shell.save_file_manager.load_variables_for_template') as mock_load_vars, \
+             patch('interactive_shell.history_logger'):
+            
+            mock_load_vars.return_value = {'title': 'Test'}
+            shell = InteractiveShell()
+            shell.current_template = Mock(relative_path='test.template')  # Mock current template
+            
+            shell.cmd_load(['example'])
+            mock_load_vars.assert_called()
+            # Verify it tried the extension
+    
+    def test_tab_completion_use_space(self):
+        """Test 'use ' + TAB shows templates, not commands."""
+        self.create_test_template('example.template')
+        self.create_test_template('test.template')
+
+        completer = ShellCompleter(template_def=None)
+        
+        # Mock document for 'use '
+        class MockDocUseSpace:
+            text_before_cursor = 'use '
+            current_line_before_cursor = 'use '
+        
+        completions = list(completer.get_completions(MockDocUseSpace(), None))
+        texts = [c.text for c in completions]
+        self.assertIn('example', texts)
+        self.assertIn('test', texts)
+        self.assertNotIn('render', texts)
+        self.assertNotIn('load', texts)
+    
+    def test_tab_completion_use_example_space(self):
+        """Test 'use example ' + TAB shows saves."""
+        self.create_test_save('client.save')
+        self.create_test_save('project.save')
+
+        completer = ShellCompleter(template_def=None)
+        
+        class MockDocUseExampleSpace:
+            text_before_cursor = 'use example '
+            current_line_before_cursor = 'use example '
+        
+        completions = list(completer.get_completions(MockDocUseExampleSpace(), None))
+        texts = [c.text for c in completions]
+        self.assertIn('client', texts)
+        self.assertIn('project', texts)
+
+# Insert after the existing test_template_completion_context method or before TestInteractiveShell class
 class TestInteractiveShell(unittest.TestCase):
     """Test interactive shell command handlers."""
     
@@ -143,6 +263,17 @@ VARS:
 
 ### TEMPLATE ###
 Hello {{ name }}!
+        """)
+        
+        # Create another template for extension testing
+        example_template = self.templates_dir / 'example.template'
+        example_template.write_text("""
+VARS:
+  - title:
+      description: Title
+
+### TEMPLATE ###
+Title: {{ title }}
         """)
     
     def tearDown(self):

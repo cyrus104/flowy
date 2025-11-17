@@ -7,7 +7,7 @@ Provides context-aware tab completion for commands, templates, saves, variables,
 import os
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Generator
 from prompt_toolkit.completion import Completer, Completion, CompleteEvent
 from prompt_toolkit.document import Document
 
@@ -16,22 +16,28 @@ from template_parser import TemplateParser
 
 
 def _get_template_files() -> List[str]:
-    """Get all relative template paths recursively."""
+    """Get all relative template paths recursively (without .template extension)."""
     templates = []
     templates_path = Path(TEMPLATES_DIR)
     if templates_path.exists():
         for path in templates_path.rglob("*.template"):
-            templates.append(path.relative_to(templates_path).as_posix())
+            # Strip the .template extension for display
+            rel_path = path.relative_to(templates_path).as_posix()
+            display_name = rel_path[:-9] if rel_path.endswith('.template') else rel_path
+            templates.append(display_name)
     return sorted(templates)
 
 
 def _get_save_files() -> List[str]:
-    """Get all relative save paths recursively."""
+    """Get all relative save paths recursively (without .save extension)."""
     saves = []
     saves_path = Path(SAVES_DIR)
     if saves_path.exists():
         for path in saves_path.rglob("*.save"):
-            saves.append(path.relative_to(saves_path).as_posix())
+            # Strip the .save extension for display
+            rel_path = path.relative_to(saves_path).as_posix()
+            display_name = rel_path[:-5] if rel_path.endswith('.save') else rel_path
+            saves.append(display_name)
     return sorted(saves)
 
 
@@ -72,7 +78,7 @@ class ShellCompleter(Completer):
         self._commands = list(COMMAND_ALIASES.keys()) + [alias for aliases in COMMAND_ALIASES.values() for alias in aliases]
         self._commands = sorted(set(self._commands))
     
-    def get_completions(self, document: Document, complete_event: CompleteEvent) -> List[Completion]:
+    def get_completions(self, document: Document, complete_event: CompleteEvent) -> Generator[Completion, None, None]:
         """Generate completions based on current input context."""
         text_before_cursor = document.text_before_cursor
         word_before_cursor = document.text_before_cursor.lstrip()
@@ -80,12 +86,26 @@ class ShellCompleter(Completer):
         
         command, args = _parse_command_line(text_before_cursor)
         
-        # Command completion (no args typed yet)
-        if len(args) == 0:
+        # Check if we're completing a command or its arguments
+        # If no command yet, or still typing the command itself (no space after)
+        if not command or (len(args) == 0 and not text_before_cursor.endswith(' ')):
             for cmd in self._commands:
                 if cmd.startswith(word):
                     yield Completion(cmd, start_position=-len(word))
             return
+        
+        # If command expects files and user typed space after command, complete files
+        if len(args) == 0 and text_before_cursor.endswith(' '):
+            if command == 'use':
+                # Complete templates for 'use' command
+                for path in self._templates:
+                    yield Completion(path, start_position=0)
+                return
+            elif command in ['load', 'save']:
+                # Complete save files for 'load' and 'save' commands
+                for path in self._saves:
+                    yield Completion(path, start_position=0)
+                return
         
         # Context-specific completion for arguments
         if command in ['use', 'load', 'save']:

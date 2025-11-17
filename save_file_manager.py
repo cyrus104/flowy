@@ -167,10 +167,25 @@ class SaveFileManager:
         Args:
             save_path: Relative path (e.g., 'client_a.save' or 'projects/client.save')
         """
-        full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
+        # Try with and without .save extension
+        paths_to_try = []
+        if save_path.endswith('.save'):
+            paths_to_try.append(save_path)
+        else:
+            # Try with extension first, then as-is
+            paths_to_try.append(save_path + '.save')
+            paths_to_try.append(save_path)
         
-        if not os.path.exists(full_path):
-            raise SaveFileNotFoundError("Save file not found", full_path)
+        full_path = None
+        for path in paths_to_try:
+            test_path = os.path.normpath(os.path.join(self.saves_dir, path))
+            if os.path.exists(test_path):
+                full_path = test_path
+                break
+        
+        if full_path is None:
+            attempted = ', '.join(paths_to_try)
+            raise SaveFileNotFoundError(f"Save file not found. Tried: {attempted}", save_path)
         
         try:
             config = configparser.ConfigParser(allow_no_value=True)
@@ -184,9 +199,13 @@ class SaveFileManager:
         Save SaveFileData to file atomically.
         
         Args:
-            save_path: Relative path
+            save_path: Relative path (with or without .save extension)
             save_data: SaveFileData object to write
         """
+        # Add .save extension if not present
+        if not save_path.endswith('.save'):
+            save_path = save_path + '.save'
+        
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
         self._ensure_directory_exists(full_path)
         
@@ -210,7 +229,7 @@ class SaveFileManager:
         Save variables to save file (general or template-specific section).
         
         Args:
-            save_path: Save file path
+            save_path: Save file path (with or without .save extension)
             variables: Variables to save
             template_path: Template section name or None for [general]
         """

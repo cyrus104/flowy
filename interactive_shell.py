@@ -205,22 +205,36 @@ class InteractiveShell:
         template_path = args[0]
         save_path = args[1] if len(args) > 1 else None
         
+        # Try to parse template, adding .template extension if needed
         try:
+            # First try as-is
             self.current_template = self.template_parser.parse(template_path)
-            self.completer.update_template(self.current_template)
-            state_manager.set_template(template_path)
-            
-            self._display_success(f"Loaded: {template_path}")
-            
-            if save_path:
-                self.cmd_load([save_path])
-                if self.current_template:
-                    self.cmd_render([])
-                    
+            actual_path = template_path
         except TemplateNotFoundError:
-            self._display_error(f"Template not found: {template_path}")
+            # If not found and doesn't end with .template, try adding extension
+            if not template_path.endswith('.template'):
+                try:
+                    actual_path = template_path + '.template'
+                    self.current_template = self.template_parser.parse(actual_path)
+                except TemplateNotFoundError:
+                    self._display_error(f"Template not found: {template_path} (also tried {actual_path})")
+                    return
+            else:
+                self._display_error(f"Template not found: {template_path}")
+                return
         except TemplateParseError as e:
             self._display_error(f"Template parse error: {e}")
+            return
+        
+        self.completer.update_template(self.current_template)
+        state_manager.set_template(actual_path)
+        
+        self._display_success(f"Loaded: {actual_path}")
+        
+        if save_path:
+            self.cmd_load([save_path])
+            if self.current_template:
+                self.cmd_render([])
     
     def cmd_load(self, args: list[str]):
         """Load variables from save file."""
@@ -232,18 +246,33 @@ class InteractiveShell:
             self._display_error("Usage: load <save_path>")
             return
         
+        save_path = args[0]
+        actual_save_path = save_path
+        
+        # Try to load save file, adding .save extension if needed
         try:
-            save_path = args[0]
             variables = save_file_manager.load_variables_for_template(
                 save_path, self.current_template.relative_path
             )
-            state_manager.set_variables(variables)
-            self.current_save_path = save_path
-            
-            self._display_success(f"Loaded variables from: {save_path}")
-            
         except Exception as e:
-            self._display_error(f"Failed to load save file: {e}")
+            # If not found and doesn't end with .save, try adding extension
+            if not save_path.endswith('.save') and 'not found' in str(e).lower():
+                try:
+                    actual_save_path = save_path + '.save'
+                    variables = save_file_manager.load_variables_for_template(
+                        actual_save_path, self.current_template.relative_path
+                    )
+                except Exception:
+                    self._display_error(f"Failed to load save file: {save_path} (also tried {actual_save_path})")
+                    return
+            else:
+                self._display_error(f"Failed to load save file: {e}")
+                return
+        
+        state_manager.set_variables(variables)
+        self.current_save_path = actual_save_path
+        
+        self._display_success(f"Loaded variables from: {actual_save_path}")
     
     def cmd_set(self, args: list[str]):
         """Set variable value."""
@@ -295,8 +324,12 @@ class InteractiveShell:
             self._display_error("Usage: save <save_path>")
             return
         
+        save_path = args[0]
+        # Add .save extension if not present
+        if not save_path.endswith('.save'):
+            save_path = save_path + '.save'
+        
         try:
-            save_path = args[0]
             variables = state_manager.get_all_variables()
             save_file_manager.save_variables(save_path, variables, self.current_template.relative_path)
             self._display_success(f"Saved variables to: {save_path}")

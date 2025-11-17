@@ -151,21 +151,41 @@ class TemplateParser:
         
     def parse(self, template_path: str) -> TemplateDefinition:
         """
-        Parse a template file and return a TemplateDefinition object.
+        Parse a template file and return its definition.
         
         Args:
-            template_path: Relative path to template (e.g., 'report.template' or 'reports/monthly.template')
+            template_path: Relative path to template file from templates directory
             
         Returns:
             TemplateDefinition object containing parsed template data
             
         Raises:
             TemplateNotFoundError: If template file doesn't exist
-            TemplateFormatError: If template structure is invalid
+            TemplateParseError: If template format is invalid
             VariableDefinitionError: If VARS section contains invalid YAML
         """
-        # Resolve full path
-        full_path = os.path.normpath(os.path.join(self.templates_dir, template_path))
+        # Try with and without .template extension
+        paths_to_try = []
+        if template_path.endswith('.template'):
+            paths_to_try.append(template_path)
+        else:
+            # Try with extension first, then as-is
+            paths_to_try.append(template_path + '.template')
+            paths_to_try.append(template_path)
+        
+        full_path = None
+        actual_template_path = None
+        for path in paths_to_try:
+            test_path = os.path.normpath(os.path.join(self.templates_dir, path))
+            if os.path.exists(test_path):
+                full_path = test_path
+                actual_template_path = path
+                break
+        
+        if full_path is None:
+            # Provide helpful error message about attempted paths
+            attempted = ', '.join(paths_to_try)
+            raise TemplateNotFoundError(f"Template not found. Tried: {attempted}")
         
         # Read file content
         content = self._read_file(full_path)
@@ -180,11 +200,11 @@ class TemplateParser:
         template_content = self._extract_template_content(template_section)
         
         # Create and return TemplateDefinition
-        template_name = os.path.basename(template_path)
+        template_name = os.path.basename(actual_template_path)
         return TemplateDefinition(
             path=full_path,
             name=template_name,
-            relative_path=template_path,
+            relative_path=actual_template_path,
             variables=variables,
             template_content=template_content,
             raw_vars_section=vars_section
