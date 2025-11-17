@@ -185,7 +185,9 @@ class TemplateParser:
         if full_path is None:
             # Provide helpful error message about attempted paths
             attempted = ', '.join(paths_to_try)
-            raise TemplateNotFoundError(f"Template not found. Tried: {attempted}")
+            error_msg = f"Template not found. Tried: {attempted}"
+            # Keep template_path as first argument for exception contract
+            raise TemplateNotFoundError(template_path) from TemplateParseError(error_msg, template_path)
         
         # Read file content
         content = self._read_file(full_path)

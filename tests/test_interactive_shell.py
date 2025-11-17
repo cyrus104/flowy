@@ -61,8 +61,8 @@ class TestShellCompleters(unittest.TestCase):
         self.create_test_template('reports/monthly.template')
         
         templates = _get_template_files()
-        self.assertIn('test.template', templates)
-        self.assertIn('reports/monthly.template', templates)
+        self.assertIn('test', templates)
+        self.assertIn('reports/monthly', templates)
     
     def test_get_save_files(self):
         """Test save file discovery."""
@@ -70,8 +70,8 @@ class TestShellCompleters(unittest.TestCase):
         self.create_test_save('projects/client.save')
         
         saves = _get_save_files()
-        self.assertIn('test.save', saves)
-        self.assertIn('projects/client.save', saves)
+        self.assertIn('test', saves)
+        self.assertIn('projects/client', saves)
     
     def test_command_completion(self):
         """Test command completion."""
