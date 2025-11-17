@@ -69,16 +69,16 @@ class SessionState:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'SessionState':
-        """Deserialize from JSON dict with validation."""
-        required_keys = {'template', 'variables', 'timestamp'}
+        """Deserialize from JSON dict with validation (backward compatible - timestamp and variables optional)."""
+        required_keys = {'template'}
         missing_keys = required_keys - set(data.keys())
         if missing_keys:
             raise ValueError(f"Missing required keys in state data: {missing_keys}")
-        
+
         return cls(
             template_path=data.get('template'),
             variables=data.get('variables', {}),
-            timestamp=data.get('timestamp')
+            timestamp=data.get('timestamp')  # Optional - auto-generated if None
         )
     
     def to_dict(self) -> Dict[str, Any]:

@@ -77,9 +77,62 @@ class TestSessionState(unittest.TestCase):
     
     def test_from_dict_validation(self):
         """Test from_dict() validates required keys."""
+        # Missing 'template' should raise error
         invalid_data = {'variables': {}, 'timestamp': ''}
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError) as cm:
             SessionState.from_dict(invalid_data)
+        self.assertIn('template', str(cm.exception))
+
+    def test_from_dict_minimal_template_only(self):
+        """Test from_dict() accepts dict with only 'template' key."""
+        # Minimal state file with only template (no variables, no timestamp)
+        minimal_data = {'template': 'test.template'}
+
+        # Should not raise error
+        state = SessionState.from_dict(minimal_data)
+
+        # Verify state was created
+        self.assertEqual(state.template_path, 'test.template')
+
+        # Verify variables defaults to empty dict
+        self.assertEqual(state.variables, {})
+
+        # Verify timestamp was auto-generated
+        self.assertIsNotNone(state.timestamp)
+        self.assertIsInstance(state.timestamp, str)
+
+        # Verify timestamp is valid ISO 8601 format
+        from datetime import datetime
+        try:
+            datetime.fromisoformat(state.timestamp)
+        except ValueError:
+            self.fail('Auto-generated timestamp is not valid ISO 8601 format')
+
+    def test_from_dict_backward_compatibility(self):
+        """Test from_dict() handles old state files without timestamp."""
+        # Old state file format (no timestamp)
+        old_data = {
+            'template': 'test.template',
+            'variables': {'var1': 'value1'}
+        }
+        
+        # Should not raise error
+        state = SessionState.from_dict(old_data)
+        
+        # Verify state was created
+        self.assertEqual(state.template_path, 'test.template')
+        self.assertEqual(state.variables, {'var1': 'value1'})
+        
+        # Verify timestamp was auto-generated
+        self.assertIsNotNone(state.timestamp)
+        self.assertIsInstance(state.timestamp, str)
+        
+        # Verify timestamp is valid ISO 8601 format
+        from datetime import datetime
+        try:
+            datetime.fromisoformat(state.timestamp)
+        except ValueError:
+            self.fail('Auto-generated timestamp is not valid ISO 8601 format')
     
     def test_copy_with_method(self):
         """Test copy_with() creates modified copies."""
