@@ -136,6 +136,13 @@ class ShellCompleter(Completer):
                     if opt.startswith(word):
                         yield Completion(opt, start_position=-len(word))
         
+        elif command == 'help' or command in COMMAND_ALIASES.get('help', []):
+            # First arg: command name completion (works for help, h, and ?)
+            if len(args) == 1:
+                for cmd in self._commands:
+                    if cmd.startswith(word):
+                        yield Completion(cmd, start_position=-len(word))
+        
         # Path-like completion fallback (directories)
         if '/' in word:
             base_path = word.rsplit('/', 1)[0] + '/'

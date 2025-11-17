@@ -81,6 +81,7 @@ COMMAND_ALIASES = {
     'render': ['r', 're'],
     'ls': ['ll'],
     'use': ['load_template'],
+    'help': ['h', '?'],
     # Users can add custom aliases here as needed
 }
 """

@@ -350,6 +350,200 @@ class InteractiveShell:
         
         self._display_variables_table()
     
+    def cmd_help(self, args: list[str]):
+        """Display help information for commands."""
+        if not args:
+            # Display general help overview
+            self._display_general_help()
+        else:
+            # Display detailed help for specific command
+            command = self._resolve_alias(args[0])
+            self._display_command_help(command)
+    
+    def _get_aliases_for(self, command: str) -> str:
+        """Get formatted alias string for a command."""
+        aliases = COMMAND_ALIASES.get(command, [])
+        return ', '.join(aliases) if aliases else '-'
+    
+    def _display_general_help(self):
+        """Display overview of all available commands."""
+        print("\n[cyan][bold]Available Commands:[/bold][/cyan]\n")
+        
+        headers = ["Command", "Aliases", "Syntax", "Description"]
+        rows = [
+            ["use", self._get_aliases_for('use'), "use <template> [save]", "Load template (+ optional auto-render)"],
+            ["load", self._get_aliases_for('load'), "load <save>", "Load variables from save file"],
+            ["set", self._get_aliases_for('set'), "set <var> <value>", "Set variable value"],
+            ["unset", self._get_aliases_for('unset'), "unset <var>", "Remove variable"],
+            ["save", self._get_aliases_for('save'), "save <save>", "Save current variables to file"],
+            ["render", self._get_aliases_for('render'), "render", "Render current template"],
+            ["ls", self._get_aliases_for('ls'), "ls", "Show variables table"],
+            ["revert", self._get_aliases_for('revert'), "revert", "Toggle previous template state"],
+            ["help", self._get_aliases_for('help'), "help [command]", "Show this help or command details"],
+            ["exit", self._get_aliases_for('exit'), "exit", "Exit the shell"],
+        ]
+        
+        table = self._format_table(headers, rows)
+        print(table)
+        print("\n[green]Tip: Type 'help <command>' for detailed information about a specific command.[/green]\n")
+    
+    def _display_command_help(self, command: str):
+        """Display detailed help for a specific command."""
+        # Get aliases dynamically
+        aliases_str = self._get_aliases_for(command)
+        
+        help_text = {
+            'use': f"""
+[cyan][bold]Command: use[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('use')}
+[bold]Syntax:[/bold]  use <template_path> [save_path]
+
+[bold]Description:[/bold]
+Load a template file for rendering. Optionally provide a save file path as the
+second argument to automatically load variables and render the template.
+
+[bold]Examples:[/bold]
+  use example              # Load example.template
+  use example.template     # Load with full extension
+  use reports/monthly      # Load from subdirectory
+  use example client       # Load template + save file, auto-render
+
+[bold]Related:[/bold] load, render, ls
+""",
+            'load': """
+[cyan][bold]Command: load[/bold][/cyan]
+[bold]Syntax:[/bold]  load <save_path>
+
+[bold]Description:[/bold]
+Load variables from a save file for the currently loaded template.
+The save file should contain a section matching the template name.
+
+[bold]Examples:[/bold]
+  load client              # Load client.save
+  load projects/demo       # Load from subdirectory
+
+[bold]Related:[/bold] use, save, set
+""",
+            'set': """
+[cyan][bold]Command: set[/bold][/cyan]
+[bold]Syntax:[/bold]  set <variable> <value>
+
+[bold]Description:[/bold]
+Set a variable value for the current template. The variable must be defined
+in the template's VARS section. Use tab completion to see available variables.
+
+[bold]Examples:[/bold]
+  set client_name "Acme Corp"
+  set report_type monthly
+  set include_charts true
+
+[bold]Related:[/bold] unset, ls, render
+""",
+            'unset': """
+[cyan][bold]Command: unset[/bold][/cyan]
+[bold]Syntax:[/bold]  unset <variable>
+
+[bold]Description:[/bold]
+Remove a variable assignment, reverting to the template's default value if specified.
+
+[bold]Examples:[/bold]
+  unset client_name
+  unset report_type
+
+[bold]Related:[/bold] set, ls
+""",
+            'save': """
+[cyan][bold]Command: save[/bold][/cyan]
+[bold]Syntax:[/bold]  save <save_path>
+
+[bold]Description:[/bold]
+Save the current variable values to a save file. Creates subdirectories as needed.
+The variables are saved in a section matching the current template name.
+
+[bold]Examples:[/bold]
+  save client              # Save to client.save
+  save projects/demo       # Save to subdirectory
+
+[bold]Related:[/bold] load, set
+""",
+            'render': f"""
+[cyan][bold]Command: render[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('render')}
+[bold]Syntax:[/bold]  render
+
+[bold]Description:[/bold]
+Render the current template with all set variables. Output is automatically
+wrapped to fit your terminal width. Undefined variables are highlighted in red.
+
+[bold]Examples:[/bold]
+  render
+  r        # Using alias
+
+[bold]Related:[/bold] use, set, ls
+""",
+            'ls': f"""
+[cyan][bold]Command: ls[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('ls')}
+[bold]Syntax:[/bold]  ls
+
+[bold]Description:[/bold]
+Display a table of all variables defined in the current template, showing their
+current values, descriptions, defaults, and available options.
+
+[bold]Examples:[/bold]
+  ls
+  ll       # Using alias
+
+[bold]Related:[/bold] set, unset
+""",
+            'revert': """
+[cyan][bold]Command: revert[/bold][/cyan]
+[bold]Syntax:[/bold]  revert
+
+[bold]Description:[/bold]
+Revert to the previous template state. Running revert again toggles back to the
+latest state. Skips duplicate template states in history.
+
+[bold]Examples:[/bold]
+  revert   # Go back to previous template
+  revert   # Toggle back to latest
+
+[bold]Related:[/bold] use
+""",
+            'help': f"""
+[cyan][bold]Command: help[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('help')}
+[bold]Syntax:[/bold]  help [command]
+
+[bold]Description:[/bold]
+Display help information. Without arguments, shows an overview of all commands.
+With a command name, shows detailed help for that specific command.
+
+[bold]Examples:[/bold]
+  help         # Show all commands
+  help use     # Detailed help for 'use'
+  ?            # Using alias
+
+[bold]Related:[/bold] All commands
+""",
+            'exit': """
+[cyan][bold]Command: exit[/bold][/cyan]
+[bold]Syntax:[/bold]  exit
+
+[bold]Description:[/bold]
+Exit the interactive shell. You can also use Ctrl+D to exit.
+
+[bold]Examples:[/bold]
+  exit
+""",
+        }
+        
+        if command in help_text:
+            print(help_text[command])
+        else:
+            self._display_error(f"Unknown command: {command}")
+            print("[yellow]Type 'help' to see all available commands.[/yellow]")
+    
     def _display_variables_table(self):
         """Display formatted variables table."""
         if not self.current_template.variables:

@@ -385,6 +385,16 @@ def test_cmd_revert(self, mock_parser, mock_state):
         with patch.object(shell, 'cmd_ls'):
             shell._handle_command('ll')
             shell.cmd_ls.assert_called_once()
+        
+        # Test h → help
+        with patch.object(shell, 'cmd_help'):
+            shell._handle_command('h')
+            shell.cmd_help.assert_called_once()
+        
+        # Test ? → help
+        with patch.object(shell, 'cmd_help'):
+            shell._handle_command('?')
+            shell.cmd_help.assert_called_once()
     
     def test_error_handling_no_template(self):
         """Test commands requiring template."""
@@ -393,6 +403,65 @@ def test_cmd_revert(self, mock_parser, mock_state):
         shell.cmd_render([])
         shell.cmd_set(['name', 'value'])
         shell.cmd_ls([])
+    
+    def test_cmd_help_no_args(self):
+        """Test help command without arguments shows all commands."""
+        shell = InteractiveShell()
+        
+        with patch('builtins.print') as mock_print:
+            shell.cmd_help([])
+            
+            # Verify print was called
+            self.assertTrue(mock_print.called)
+            
+            # Get all printed output
+            printed_text = ' '.join(str(call[0][0]) for call in mock_print.call_args_list)
+            
+            # Verify all commands appear in output
+            self.assertIn('use', printed_text)
+            self.assertIn('load', printed_text)
+            self.assertIn('set', printed_text)
+            self.assertIn('render', printed_text)
+            self.assertIn('help', printed_text)
+    
+    def test_cmd_help_with_command(self):
+        """Test help command with specific command shows detailed help."""
+        shell = InteractiveShell()
+        
+        with patch('builtins.print') as mock_print:
+            shell.cmd_help(['use'])
+            
+            printed_text = ' '.join(str(call[0][0]) for call in mock_print.call_args_list)
+            
+            # Verify detailed help for 'use' command
+            self.assertIn('use', printed_text.lower())
+            self.assertIn('template', printed_text.lower())
+            self.assertIn('syntax', printed_text.lower() or 'Syntax' in printed_text)
+    
+    def test_cmd_help_invalid_command(self):
+        """Test help with invalid command shows error."""
+        shell = InteractiveShell()
+        
+        with patch.object(shell, '_display_error') as mock_error:
+            with patch('builtins.print'):
+                shell.cmd_help(['invalid_command'])
+                
+                # Verify error was displayed
+                mock_error.assert_called_once()
+                self.assertIn('Unknown command', mock_error.call_args[0][0])
+    
+    def test_cmd_help_with_alias(self):
+        """Test help command resolves aliases correctly."""
+        shell = InteractiveShell()
+        
+        with patch('builtins.print') as mock_print:
+            # Test with 'r' alias for 'render'
+            shell.cmd_help(['r'])
+            
+            printed_text = ' '.join(str(call[0][0]) for call in mock_print.call_args_list)
+            
+            # Should show help for 'render' command
+            self.assertIn('render', printed_text.lower())
 
 
 class TestQuickLaunch(unittest.TestCase):

@@ -98,10 +98,13 @@ python main.py
 | `save` | - | `save <save>` | Save current variables |
 | `render` | `r`, `re` | `render` | Render current template (auto-wrapped to terminal width) |
 | `ls` | `ll` | `ls` | Show variables table (adaptive column widths) |
+| `help` | `h`, `?` | `help [command]` | Show available commands or detailed help |
 | `revert` | - | `revert` | Toggle previous template state |
 | `exit` | - | `exit` | Exit shell |
 
 **Pro Tips:**
+- `help` or `?` shows all commands
+- `help <command>` shows detailed usage for a specific command
 - `use template.save` → loads + auto-renders
 - `python main.py --template X --save Y` → quick launch with auto-render
 - `Ctrl+C` cancels input, `Ctrl+D` exits
