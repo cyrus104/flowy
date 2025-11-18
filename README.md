@@ -73,6 +73,79 @@ python main.py
 3. Auto-renders output if save file is provided
 4. Drops into interactive mode for further commands
 
+## 📦 Installation
+
+The Template Assistant package can be installed via pip using several methods depending on your workflow.
+
+### Install from Wheel
+
+Install the pre-built wheel package:
+
+```bash
+pip install dist/*.whl
+```
+
+Verify installation:
+
+```bash
+template-assistant --help
+```
+
+### Development Mode
+
+For contributors who want an editable installation that reflects source code changes immediately:
+
+```bash
+pip install -e .
+```
+
+### Install from Source
+
+Build and install from source code:
+
+```bash
+./build.sh
+pip install dist/*.whl
+```
+
+**Note:** It's recommended to use a virtual environment for installation to avoid conflicts with system packages.
+
+For comprehensive installation instructions, troubleshooting, and detailed examples, see [INSTALL.md](INSTALL.md).
+
+## 🔨 Building & Distribution
+
+Build and test the package before distribution or deployment.
+
+### Build Wheel Package
+
+Build the wheel distribution package:
+
+```bash
+./build.sh
+```
+
+This script cleans old builds and creates a fresh wheel in the `dist/` directory. For manual builds, you can use:
+
+```bash
+python -m build
+```
+
+### Run Tests
+
+Execute the automated test runner:
+
+```bash
+./run_tests.sh
+```
+
+This script runs the complete test suite and reports results. To run tests manually:
+
+```bash
+python -m unittest discover tests
+```
+
+For detailed testing documentation, writing tests, and CI/CD integration, see [TESTING.md](TESTING.md).
+
 ## 💻 Interactive Shell
 
 **Metasploit-inspired CLI** with **tab completion**, **command aliases**, **rich output**, **session persistence**, and **adaptive display**.
