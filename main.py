@@ -7,10 +7,13 @@ interactive mode and quick launch mode via command-line arguments.
 Usage:
     Interactive mode:
         python main.py
-    
+
+    Interactive mode with state restore:
+        python main.py --restore
+
     Quick launch with template:
         python main.py --template example.template
-    
+
     Quick launch with template and save file:
         python main.py --template example.template --save example.save
 
@@ -56,7 +59,13 @@ auto-renders the output, then drops into interactive mode.
         type=str,
         help='Path to save file for quick launch mode (optional)'
     )
-    
+
+    parser.add_argument(
+        '--restore', '-r',
+        action='store_true',
+        help='Start with full state loaded from previous session (restores state before quick-launch template execution if --template is provided)'
+    )
+
     return parser.parse_args()
 
 
@@ -70,10 +79,10 @@ def main():
     try:
         # Parse command-line arguments
         args = parse_arguments()
-        
-        # Create interactive shell instance
-        shell = InteractiveShell()
-        
+
+        # Create interactive shell instance with restore flag
+        shell = InteractiveShell(restore_on_start=args.restore)
+
         # Determine launch mode based on arguments
         if args.template:
             # Quick launch mode with template (and optionally save file)

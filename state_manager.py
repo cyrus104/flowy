@@ -21,7 +21,7 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from pathlib import Path
 
-from configuration import STATE_FILE
+from configuration import STATE_FILE, STATE_BACKUP_FILE
 
 
 # ============================================================================
@@ -127,18 +127,19 @@ class StateManager:
     
     MAX_HISTORY_SIZE = 50
     
-    def __init__(self, state_file_path: str = None):
+    def __init__(self, state_file_path: str = None, auto_load: bool = True):
         self.state_file = state_file_path or STATE_FILE
         self.current_state: Optional[SessionState] = None
         self.history: List[SessionState] = []
         self.revert_toggle_state: Optional[SessionState] = None
-        
-        # Load existing state on initialization
-        try:
-            self._load_state()
-        except StateLoadError:
-            # Missing or corrupted state file - start fresh
-            self.current_state = None
+
+        # Load existing state on initialization if auto_load is True
+        if auto_load:
+            try:
+                self._load_state()
+            except StateLoadError:
+                # Missing or corrupted state file - start fresh
+                self.current_state = None
     
     def _load_state(self) -> None:
         """Load state from disk, handle missing file gracefully."""
@@ -353,6 +354,81 @@ class StateManager:
         """Create parent directory if needed."""
         Path(self.state_file).parent.mkdir(parents=True, exist_ok=True)
 
+    def backup_state(self) -> None:
+        """Backup current state file to backup location before clearing."""
+        if not os.path.exists(self.state_file):
+            return  # No state file to backup
 
-# Module convenience instance (uses default config)
-state_manager = StateManager()
+        self._ensure_directory_exists()
+
+        try:
+            # Read current state file
+            with open(self.state_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Ensure backup directory exists (handles custom environment paths)
+            Path(STATE_BACKUP_FILE).parent.mkdir(parents=True, exist_ok=True)
+
+            # Atomic write to backup file: temp file -> rename
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.state.backup.tmp',
+                                           dir=Path(STATE_BACKUP_FILE).parent, delete=False) as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                temp_path = f.name
+
+            shutil.move(temp_path, STATE_BACKUP_FILE)
+        except (json.JSONDecodeError, OSError):
+            # If backup fails, just continue (non-critical)
+            pass
+
+    def restore_from_backup(self) -> bool:
+        """
+        Restore state from backup file.
+
+        Returns:
+            True if restore succeeded, False if no backup exists or backup corrupted
+        """
+        if not os.path.exists(STATE_BACKUP_FILE):
+            return False
+
+        try:
+            with open(STATE_BACKUP_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Deserialize current state
+            if data.get('current_template') is not None or data.get('variables'):
+                self.current_state = SessionState.from_dict({
+                    'template': data.get('current_template'),
+                    'variables': data.get('variables', {}),
+                    'timestamp': data.get('timestamp', '')
+                })
+            else:
+                self.current_state = None
+
+            # Deserialize history
+            history_data = data.get('history', [])
+            self.history = [SessionState.from_dict(item) for item in history_data]
+
+            # Deserialize toggle state if present
+            toggle_data = data.get('revert_toggle_state')
+            if toggle_data:
+                self.revert_toggle_state = SessionState.from_dict(toggle_data)
+            else:
+                self.revert_toggle_state = None
+
+            # Save restored state to main state file
+            self.save_state()
+            return True
+
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return False
+
+    def clear_state(self) -> None:
+        """Clear current state and history, then persist empty state."""
+        self.current_state = None
+        self.history = []
+        self.revert_toggle_state = None
+        self.save_state()
+
+
+# Module convenience instance (uses default config, auto_load disabled for controlled initialization)
+state_manager = StateManager(auto_load=False)

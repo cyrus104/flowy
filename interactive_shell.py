@@ -37,27 +37,28 @@ from display_manager import display_manager
 class InteractiveShell:
     """Main interactive shell orchestrating all components."""
     
-    def __init__(self):
+    def __init__(self, restore_on_start: bool = False):
         self.template_parser = TemplateParser(TEMPLATES_DIR)
         self.renderer = template_renderer
         self.display_manager = display_manager
         self.current_template: Optional['TemplateDefinition'] = None
         self.current_save_path: Optional[str] = None
-        
+        self.restore_on_start = restore_on_start
+
         # Completer with current template state
         self.completer = ShellCompleter()
-        
+
         # Prompt session with custom style
         style = Style.from_dict({
             'prompt': '#a5a5a5 bold',
         })
-        
+
         self.session = PromptSession(
             style=style,
             completer=self.completer,
             complete_while_typing=True,
         )
-        
+
         colorama.init()
     
     def start(self):
@@ -65,38 +66,71 @@ class InteractiveShell:
         self.display_banner()
         if SHOW_CONFIG_ON_STARTUP:
             self.display_configuration()
-        
-        # Load existing state using public API
-        template_path = state_manager.get_current_template()
-        if template_path:
+
+        # Handle restore flag
+        if not self.restore_on_start:
+            # Default behavior: backup existing state and start fresh
+            state_manager.backup_state()
+            state_manager.clear_state()
+        else:
+            # Restore mode: explicitly load existing state
             try:
-                self.current_template = self.template_parser.parse(template_path)
-                self.completer.update_template(self.current_template)
-                print(f"[green]Restored session: {template_path}[/green]")
+                state_manager._load_state()
             except Exception:
-                pass  # Ignore corrupted template on startup
-        
+                pass  # Missing or corrupted state file - start fresh
+
+            template_path = state_manager.get_current_template()
+            if template_path:
+                try:
+                    self.current_template = self.template_parser.parse(template_path)
+                    self.completer.update_template(self.current_template)
+                    print(f"[green]Restored session: {template_path}[/green]")
+                except Exception:
+                    pass  # Ignore corrupted template on startup
+
         self.run()
     
     def quick_launch(self, template_path: str, save_path: Optional[str] = None):
         """
         Quick launch mode - programmatically execute commands before interactive loop.
-        
+
         Args:
             template_path: Path to template file to load
             save_path: Optional path to save file for variables
-        
+
         This method:
         1. Displays banner and configuration
-        2. Loads the template (and save file if provided)
-        3. Auto-renders if save file is provided
-        4. Drops into interactive mode
+        2. Handles restore_on_start flag semantics (backup/clear or restore)
+        3. Loads the template (and save file if provided)
+        4. Auto-renders if save file is provided
+        5. Drops into interactive mode
         """
         # Display startup information
         self.display_banner()
         if SHOW_CONFIG_ON_STARTUP:
             self.display_configuration()
-        
+
+        # Handle restore flag (same semantics as start())
+        if not self.restore_on_start:
+            # Default behavior: backup existing state and start fresh
+            state_manager.backup_state()
+            state_manager.clear_state()
+        else:
+            # Restore mode: explicitly load existing state
+            try:
+                state_manager._load_state()
+            except Exception:
+                pass  # Missing or corrupted state file - start fresh
+
+            existing_template = state_manager.get_current_template()
+            if existing_template:
+                try:
+                    self.current_template = self.template_parser.parse(existing_template)
+                    self.completer.update_template(self.current_template)
+                    print(f"[green]Restored session: {existing_template}[/green]")
+                except Exception:
+                    pass  # Ignore corrupted template on startup
+
         try:
             # Execute use command with template (and optionally save)
             if save_path:
@@ -107,14 +141,14 @@ class InteractiveShell:
                 # Just load the template
                 print(f"[cyan]Quick launch: Loading {template_path}[/cyan]")
                 self.cmd_use([template_path])
-            
+
             print()  # Add blank line before interactive prompt
-            
+
         except Exception as e:
             # Display error but continue to interactive mode
             self._display_error(f"Quick launch failed: {e}")
             print("[yellow]Entering interactive mode...[/yellow]\n")
-        
+
         # Enter interactive command loop
         self.run()
     
@@ -390,6 +424,7 @@ class InteractiveShell:
             ["render", self._get_aliases_for('render'), "render", "Render current template"],
             ["ls", self._get_aliases_for('ls'), "ls", "Show variables table"],
             ["revert", self._get_aliases_for('revert'), "revert", "Toggle previous template state"],
+            ["restore", self._get_aliases_for('restore'), "restore", "Restore state from before last program start"],
             ["help", self._get_aliases_for('help'), "help [command]", "Show this help or command details"],
             ["exit", self._get_aliases_for('exit'), "exit", "Exit the shell"],
         ]
@@ -521,6 +556,27 @@ latest state. Skips duplicate template states in history.
 
 [bold]Related:[/bold] use
 """,
+            'restore': f"""
+[cyan][bold]Command: restore[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('restore')}
+[bold]Syntax:[/bold]  restore
+
+[bold]Description:[/bold]
+Restore state from before the last program start. When the program starts without
+the --restore flag, it backs up the current state and starts fresh. This command
+allows you to restore that backup at any time during the session.
+
+[bold]Examples:[/bold]
+  restore   # Restore state from before last program start
+  res       # Using alias
+
+[bold]Use Cases:[/bold]
+- You started fresh but want to recover previous work
+- Accidentally started without --restore flag
+- Want to switch back to previous session mid-work
+
+[bold]Related:[/bold] revert, use
+""",
             'help': f"""
 [cyan][bold]Command: help[/bold][/cyan]
 [bold]Aliases:[/bold] {self._get_aliases_for('help')}
@@ -595,7 +651,32 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
                 self._display_error("No previous state to revert to")
         except Exception as e:
             self._display_error(f"Revert failed: {e}")
-    
+
+    def cmd_restore(self, args: list[str]):
+        """Restore state from before last program start."""
+        try:
+            if state_manager.restore_from_backup():
+                template_path = state_manager.get_current_template()
+                if template_path:
+                    try:
+                        self.current_template = self.template_parser.parse(template_path)
+                        self.completer.update_template(self.current_template)
+                        self._display_success(f"Restored from backup: {template_path}")
+                    except Exception as e:
+                        # Template load failed - synchronize shell UI with failed state
+                        self.current_template = None
+                        self.completer.update_template(None)
+                        self._display_error(f"Restored state but failed to load template: {e}")
+                else:
+                    # Empty state - synchronize shell UI
+                    self.current_template = None
+                    self.completer.update_template(None)
+                    self._display_success("Restored to empty state from backup")
+            else:
+                self._display_error("No backup state available")
+        except Exception as e:
+            self._display_error(f"Restore failed: {e}")
+
     def cmd_exit(self, args: list[str]):
         """Exit shell."""
         self._exit()

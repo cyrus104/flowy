@@ -44,6 +44,9 @@ MODULES_DIR = os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules')
 STATE_FILE = os.getenv('TEMPLATE_ASSISTANT_STATE', './.state')
 """Path to state file for session persistence and crash recovery (JSON format)"""
 
+STATE_BACKUP_FILE = os.getenv('TEMPLATE_ASSISTANT_STATE_BACKUP', './.state.backup')
+"""Path to backup state file storing state from before last program start for restore command"""
+
 HISTORY_FILE = os.getenv('TEMPLATE_ASSISTANT_HISTORY', './.history')
 """Path to history file for command audit trail (plain text format)"""
 
@@ -82,6 +85,7 @@ COMMAND_ALIASES = {
     'ls': ['ll'],
     'use': ['load_template'],
     'help': ['h', '?'],
+    'restore': ['res'],
     # Users can add custom aliases here as needed
 }
 """
