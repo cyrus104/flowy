@@ -1,0 +1,41 @@
+VARS:
+  - report_date:
+      description: "Date of the report"
+  - client_name:
+      description: "Client organization name"
+  - report_frequency:
+      description: "Frequency of report generation"
+      default: "monthly"
+      options: ['daily', 'weekly', 'monthly', 'quarterly']
+  - include_charts:
+      description: "Include charts in the report"
+      default: true
+      options: [true, false]
+  - chart_type:
+      description: "Type of chart to display"
+      default: "bar"
+      options: ['bar', 'line', 'pie', 'scatter']
+
+### TEMPLATE ###
+[bold][green]═══════════════════════════════════════════════════════════════[/green][/bold]
+[bold][cyan]                    MONTHLY REPORT                              [/cyan][/bold]
+[bold][green]═══════════════════════════════════════════════════════════════[/green][/bold]
+
+[bold]Client:[/bold] [yellow]{{ client_name }}[/yellow]
+[bold]Report Date:[/bold] [yellow]{{ report_date }}[/yellow]
+[bold]Frequency:[/bold] [cyan]{{ report_frequency }}[/cyan]
+
+[bold][green]─────────────────────────────────────────────────────────────[/green][/bold]
+
+{% if include_charts %}
+[bold][cyan]Charts Included:[/cyan][/bold] [green]✓ Yes[/green]
+[bold]Chart Type:[/bold] [yellow]{{ chart_type }}[/yellow]
+
+[dim]Chart visualization will be rendered as [cyan]{{ chart_type }}[/cyan] chart.[/dim]
+{% else %}
+[bold][cyan]Charts Included:[/cyan][/bold] [red]✗ No[/red]
+
+[dim]No charts will be included in this report.[/dim]
+{% endif %}
+
+[bold][green]═══════════════════════════════════════════════════════════════[/green][/bold]

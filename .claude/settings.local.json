@@ -6,7 +6,8 @@
       "Bash(python tests/test_state_manager.py:*)",
       "Bash(git checkout:*)",
       "Bash(python test_interactive_shell.py:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

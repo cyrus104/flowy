@@ -1,0 +1,27 @@
+VARS:
+  - logo_path:
+      description: "Path to company logo image"
+  - title:
+      description: "Document title"
+      default: "Document"
+  - show_date:
+      description: "Display current date in header"
+      default: true
+      options: [true, false]
+  - header_color:
+      description: "Color for header text"
+      default: "blue"
+      options: ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+
+### TEMPLATE ###
+[bold][{{ header_color }}]{{ title }}[/{{ header_color }}][/bold]
+
+{% if logo_path %}
+[dim]Logo: {{ logo_path }}[/dim]
+{% endif %}
+
+{% if show_date %}
+[dim]Date: {{ current_date | default('N/A') }}[/dim]
+{% endif %}
+
+[{{ header_color }}]─────────────────────────────────────────────────────────────[/{{ header_color }}]

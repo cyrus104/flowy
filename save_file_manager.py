@@ -14,10 +14,11 @@ client_name = Acme Corp  # Overrides general for this template
 Subtemplates automatically load their context: [common/header.template]
 
 Template-specific sections override [general]. Supports subdirectories and flexible file naming
-(no extension required). Files can be organized in subdirectories with any naming convention.
+with any extension. Files can be organized in subdirectories with any naming convention.
 """
 
 import os
+import ast
 import configparser
 import tempfile
 import shutil
@@ -122,8 +123,19 @@ class SaveFileData:
         """Type coerce INI string values."""
         result = {}
         for key, value in values.items():
+            value_stripped = value.strip()
+
+            # Try to parse Python literals (lists, dicts, tuples, sets)
+            if value_stripped.startswith(('[', '{', '(')):
+                try:
+                    result[key] = ast.literal_eval(value)
+                    continue
+                except (ValueError, SyntaxError):
+                    # Fall through to existing type coercion logic
+                    pass
+
             value_lower = value.lower().strip()
-            
+
             # Boolean (direct parsing)
             if value_lower in ('true', 'yes', 'on', '1'):
                 result[key] = True
@@ -155,14 +167,7 @@ class SaveFileManager:
     Manages INI-format save files with section hierarchy support.
 
     Sections: [general] + template-specific (e.g., [reports/monthly.template])
-    Template sections override [general]. Supports subdirectories.
-
-    Backward Compatibility:
-    - Save files can be specified with or without the .save extension
-    - If a path is provided without .save and the file doesn't exist,
-      the manager will automatically check for a .save version
-    - This ensures legacy save files (e.g., 'client.save') continue to work
-      even when referenced as 'client'
+    Template sections override [general]. Supports subdirectories and any file extension.
     """
     
     def __init__(self, saves_dir: str = None):
@@ -173,35 +178,13 @@ class SaveFileManager:
         Load save file and return SaveFileData object.
 
         Args:
-            save_path: Relative path (e.g., 'client_a' or 'projects/client')
-
-        Backward Compatibility:
-        - First attempts to open the path as provided
-        - If not found and path doesn't end with .save, tries appending .save
-        - This allows both 'client' and 'client.save' to work
+            save_path: Relative path with exact name/extension (e.g., 'client.save' or 'projects/client.config')
         """
-        # Use the path as provided by the user
+        # Use the path exactly as provided by the user
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
 
-        # Track attempted paths for error message
-        attempted_paths = [save_path]
-
         if not os.path.exists(full_path):
-            # Backward compatibility: try .save extension if not already present
-            if not save_path.endswith('.save'):
-                save_path_with_ext = save_path + '.save'
-                full_path_with_ext = os.path.normpath(os.path.join(self.saves_dir, save_path_with_ext))
-                attempted_paths.append(save_path_with_ext)
-
-                if os.path.exists(full_path_with_ext):
-                    full_path = full_path_with_ext
-                else:
-                    raise SaveFileNotFoundError(
-                        f"Save file not found (tried: {', '.join(attempted_paths)})",
-                        save_path
-                    )
-            else:
-                raise SaveFileNotFoundError(f"Save file not found: {save_path}", save_path)
+            raise SaveFileNotFoundError(f"Save file not found: {save_path}", save_path)
 
         try:
             config = configparser.ConfigParser(allow_no_value=True)
@@ -215,21 +198,10 @@ class SaveFileManager:
         Save SaveFileData to file atomically.
 
         Args:
-            save_path: Relative path (e.g., 'client_a' or 'projects/client')
+            save_path: Relative path with exact name/extension (e.g., 'client.save' or 'projects/client.config')
             save_data: SaveFileData object to write
-
-        Backward Compatibility:
-        - If a .save file exists at the legacy path, save to that location
-        - Otherwise save to the path as provided
         """
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
-
-        # Backward compatibility: if .save version exists, use that
-        if not save_path.endswith('.save'):
-            save_path_with_ext = save_path + '.save'
-            full_path_with_ext = os.path.normpath(os.path.join(self.saves_dir, save_path_with_ext))
-            if os.path.exists(full_path_with_ext):
-                full_path = full_path_with_ext
 
         self._ensure_directory_exists(full_path)
 

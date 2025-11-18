@@ -731,6 +731,100 @@ class TestRichMarkupToANSI(unittest.TestCase):
                 # Verify configuration text is preserved
                 self.assertIn('Configuration', all_output)
 
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    @patch('builtins.print')
+    def test_cmd_validate_no_duplicates(self, mock_print, mock_history, mock_renderer, mock_parser, mock_save, mock_state):
+        """Test validate command with no duplicates."""
+        # Patch configuration to use temp directories
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)):
+
+            shell = InteractiveShell()
+            shell.cmd_validate([])
+
+            # Verify success message was displayed
+            self.assertGreater(mock_print.call_count, 0)
+            all_output = ' '.join([str(call[0][0]) for call in mock_print.call_args_list])
+            self.assertIn('No duplicates found', all_output)
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    @patch('builtins.print')
+    def test_cmd_validate_with_duplicates(self, mock_print, mock_history, mock_renderer, mock_parser, mock_save, mock_state):
+        """Test validate command with duplicates present."""
+        # Create duplicate files in templates directory
+        (self.templates_dir / 'test.template').write_text('template content')
+        (self.templates_dir / 'test.txt').write_text('test content')
+
+        # Patch configuration to use temp directories
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)):
+
+            shell = InteractiveShell()
+            shell.cmd_validate([])
+
+            # Verify error message was displayed
+            self.assertGreater(mock_print.call_count, 0)
+            all_output = ' '.join([str(call[0][0]) for call in mock_print.call_args_list])
+
+            # Should display duplicate information
+            self.assertIn('duplicate', all_output.lower())
+            self.assertIn('test', all_output)
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    @patch('interactive_shell.VALIDATE_ON_STARTUP', False)
+    def test_validate_on_startup_disabled(self, mock_history, mock_renderer, mock_parser, mock_save, mock_state):
+        """Test that validation is not run when VALIDATE_ON_STARTUP is False."""
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch.object(InteractiveShell, '_run_validation') as mock_validate:
+
+            shell = InteractiveShell()
+            # Mock run method to prevent actual execution
+            with patch.object(shell, 'run'):
+                shell.start()
+
+            # Validation should not be called
+            mock_validate.assert_not_called()
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    @patch('interactive_shell.VALIDATE_ON_STARTUP', True)
+    @patch('builtins.print')
+    def test_validate_on_startup_enabled(self, mock_print, mock_history, mock_renderer, mock_parser, mock_save, mock_state):
+        """Test that validation runs when VALIDATE_ON_STARTUP is True."""
+        # Create duplicate files
+        (self.templates_dir / 'test.template').write_text('template content')
+        (self.templates_dir / 'test.txt').write_text('test content')
+
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)):
+
+            shell = InteractiveShell()
+            # Mock run method to prevent actual execution
+            with patch.object(shell, 'run'):
+                shell.start()
+
+            # Validation should have been called
+            # Since show_success=False, only errors are displayed
+            # Check if validation ran by verifying duplicate message was shown
+            all_output = ' '.join([str(call[0][0]) for call in mock_print.call_args_list if call[0]])
+            self.assertIn('duplicate', all_output.lower())
+
 
 if __name__ == '__main__':
     unittest.main()

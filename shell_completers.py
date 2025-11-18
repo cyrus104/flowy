@@ -1,7 +1,7 @@
 """
 Shell Completers for Interactive Template Assistant
 
-Provides context-aware tab completion for commands, templates, saves (no extension required),
+Provides context-aware tab completion for commands, templates, saves (with any name/extension),
 variables, and options.
 """
 
@@ -30,10 +30,12 @@ def _get_template_files() -> List[str]:
 
 
 def _get_save_files() -> List[str]:
-    """Get all relative save paths recursively (no extension manipulation).
+    """Get all relative save paths recursively with exact names/extensions.
 
-    Filters out hidden files and directories (names starting with '.')
-    to avoid surfacing system artifacts like .DS_Store, .gitkeep, etc.
+    Returns all save files with any name/extension. Files are returned with their
+    exact names as stored in the saves directory. Filters out hidden files and
+    directories (names starting with '.') to avoid surfacing system artifacts
+    like .DS_Store, .gitkeep, etc.
     """
     saves = []
     saves_path = Path(SAVES_DIR)

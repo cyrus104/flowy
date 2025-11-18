@@ -112,6 +112,129 @@ class TestSaveFileData(unittest.TestCase):
         self.assertEqual(coerced['float'], 3.14)
         self.assertEqual(coerced['string'], 'hello world')
 
+    def test_parse_python_literals(self):
+        """Test parsing of Python literals (lists, dicts, tuples, sets)."""
+        values = {
+            # List parsing
+            'simple_list': "['item1', 'item2', 'item3']",
+            'mixed_list': "[1, 'two', 3.0, True]",
+            'empty_list': '[]',
+            'nested_list': "[['a', 'b'], ['c', 'd']]",
+
+            # Dict parsing
+            'simple_dict': "{'key1': 'value1', 'key2': 'value2'}",
+            'mixed_dict': "{'name': 'John', 'age': 30, 'active': True}",
+            'empty_dict': '{}',
+            'nested_dict': "{'outer': {'inner': 'value'}}",
+
+            # Tuple parsing
+            'simple_tuple': '(1, 2, 3)',
+            'single_element_tuple': '(42,)',
+
+            # Set parsing
+            'simple_set': '{1, 2, 3}',
+
+            # Whitespace handling
+            'list_with_spaces': "  ['a', 'b']  ",
+
+            # Fallback behavior (malformed literals)
+            'unclosed_bracket': "['incomplete'",
+            'non_literal_code': '[x for x in range(5)]',
+        }
+        coerced = SaveFileData._parse_values(values)
+
+        # Verify list parsing
+        self.assertIsInstance(coerced['simple_list'], list)
+        self.assertEqual(len(coerced['simple_list']), 3)
+        self.assertEqual(coerced['simple_list'][0], 'item1')
+        self.assertEqual(coerced['simple_list'][1], 'item2')
+        self.assertEqual(coerced['simple_list'][2], 'item3')
+
+        self.assertIsInstance(coerced['mixed_list'], list)
+        self.assertEqual(coerced['mixed_list'], [1, 'two', 3.0, True])
+
+        self.assertIsInstance(coerced['empty_list'], list)
+        self.assertEqual(len(coerced['empty_list']), 0)
+
+        self.assertIsInstance(coerced['nested_list'], list)
+        self.assertEqual(coerced['nested_list'], [['a', 'b'], ['c', 'd']])
+
+        # Verify dict parsing
+        self.assertIsInstance(coerced['simple_dict'], dict)
+        self.assertEqual(coerced['simple_dict']['key1'], 'value1')
+        self.assertEqual(coerced['simple_dict']['key2'], 'value2')
+
+        self.assertIsInstance(coerced['mixed_dict'], dict)
+        self.assertEqual(coerced['mixed_dict']['name'], 'John')
+        self.assertEqual(coerced['mixed_dict']['age'], 30)
+        self.assertEqual(coerced['mixed_dict']['active'], True)
+
+        self.assertIsInstance(coerced['empty_dict'], dict)
+        self.assertEqual(len(coerced['empty_dict']), 0)
+
+        self.assertIsInstance(coerced['nested_dict'], dict)
+        self.assertEqual(coerced['nested_dict']['outer']['inner'], 'value')
+
+        # Verify tuple parsing
+        self.assertIsInstance(coerced['simple_tuple'], tuple)
+        self.assertEqual(coerced['simple_tuple'], (1, 2, 3))
+
+        self.assertIsInstance(coerced['single_element_tuple'], tuple)
+        self.assertEqual(coerced['single_element_tuple'], (42,))
+
+        # Verify set parsing
+        self.assertIsInstance(coerced['simple_set'], set)
+        self.assertEqual(coerced['simple_set'], {1, 2, 3})
+
+        # Verify whitespace handling
+        self.assertIsInstance(coerced['list_with_spaces'], list)
+        self.assertEqual(coerced['list_with_spaces'], ['a', 'b'])
+
+        # Verify fallback behavior (malformed literals should be strings)
+        self.assertIsInstance(coerced['unclosed_bracket'], str)
+        self.assertEqual(coerced['unclosed_bracket'], "['incomplete'")
+
+        self.assertIsInstance(coerced['non_literal_code'], str)
+        self.assertEqual(coerced['non_literal_code'], '[x for x in range(5)]')
+
+    def test_parse_literals_integration(self):
+        """Test end-to-end parsing of Python literals in save files."""
+        import configparser
+
+        # Create a config with Python literals
+        config = configparser.ConfigParser(allow_no_value=True)
+        config['general'] = {
+            'project_list': "['Project Alpha', 'Project Beta']",
+            'config_dict': "{'debug': True, 'port': 8080}",
+            'coordinates': '(10, 20, 30)'
+        }
+
+        data = SaveFileData.from_configparser(config, '/test.save')
+
+        # Verify project_list is a Python list (not a string)
+        project_list = data.general_variables['project_list']
+        self.assertIsInstance(project_list, list)
+        self.assertEqual(len(project_list), 2)
+        self.assertEqual(project_list[0], 'Project Alpha')
+        self.assertEqual(project_list[1], 'Project Beta')
+
+        # Verify we can iterate over the list correctly
+        projects = []
+        for project in project_list:
+            projects.append(project)
+        self.assertEqual(projects, ['Project Alpha', 'Project Beta'])
+
+        # Verify config_dict is a Python dict (not a string)
+        config_dict = data.general_variables['config_dict']
+        self.assertIsInstance(config_dict, dict)
+        self.assertEqual(config_dict['debug'], True)
+        self.assertEqual(config_dict['port'], 8080)
+
+        # Verify coordinates is a Python tuple (not a string)
+        coordinates = data.general_variables['coordinates']
+        self.assertIsInstance(coordinates, tuple)
+        self.assertEqual(coordinates, (10, 20, 30))
+
 
 class TestSaveFileManager(unittest.TestCase):
     """Test SaveFileManager functionality."""
@@ -259,11 +382,11 @@ debug = false
         result = load_variables_for_template('conv', 'test.template', self.saves_dir)
         self.assertEqual(result['test'], 'value')
 
-    def test_backward_compatibility_load_with_save_extension(self):
-        """Test loading legacy .save files without specifying extension."""
+    def test_load_with_explicit_extension(self):
+        """Test loading files with .save extension when explicitly specified."""
         manager = self._create_test_manager()
 
-        # Create a legacy save file with .save extension
+        # Create a save file with .save extension
         legacy_path = os.path.join(self.saves_dir, 'legacy.save')
         content = """[general]
 company = Legacy Corp
@@ -271,54 +394,89 @@ company = Legacy Corp
         with open(legacy_path, 'w') as f:
             f.write(content)
 
-        # Load without .save extension should find the file
-        data = manager.load('legacy')
+        # Load with explicit .save extension
+        data = manager.load('legacy.save')
         self.assertEqual(data.general_variables['company'], 'Legacy Corp')
 
-    def test_backward_compatibility_save_to_existing_save_file(self):
-        """Test that saving to path with existing .save file updates the .save file."""
+    def test_save_with_any_extension(self):
+        """Test that files can be saved with various extensions."""
         manager = self._create_test_manager()
 
-        # Create a legacy .save file
-        legacy_path = os.path.join(self.saves_dir, 'client.save')
-        with open(legacy_path, 'w') as f:
-            f.write('[general]\nold = value\n')
+        # Test saving with different extensions
+        extensions = ['.save', '.config', '.data', '.txt', '']
+        for ext in extensions:
+            filename = f'test{ext}'
+            manager.save_variables(filename, {'extension': ext})
 
-        # Save using extensionless path should update the .save file
-        manager.save_variables('client', {'new': 'updated'})
+            # Verify file exists with exact name
+            file_path = os.path.join(self.saves_dir, filename)
+            self.assertTrue(os.path.exists(file_path), f"File {filename} should exist")
 
-        # Verify the .save file was updated (not a new extensionless file)
-        self.assertTrue(os.path.exists(legacy_path))
-        self.assertFalse(os.path.exists(os.path.join(self.saves_dir, 'client')))
+            # Verify content
+            data = manager.load(filename)
+            self.assertEqual(data.general_variables['extension'], ext)
 
-        # Verify content
-        data = manager.load('client')
-        self.assertEqual(data.general_variables['new'], 'updated')
-
-    def test_backward_compatibility_new_files_extensionless(self):
-        """Test that new save files are created without .save extension."""
-        manager = self._create_test_manager()
-
-        # Save to a new path (no existing .save file)
-        manager.save_variables('modern', {'test': 'value'})
-
-        # Should create extensionless file
-        modern_path = os.path.join(self.saves_dir, 'modern')
-        self.assertTrue(os.path.exists(modern_path))
-        self.assertFalse(os.path.exists(os.path.join(self.saves_dir, 'modern.save')))
-
-    def test_backward_compatibility_error_message_shows_both_attempts(self):
-        """Test that error message shows both attempted paths."""
+    def test_error_message_shows_exact_path(self):
+        """Test that error message shows only the exact path that was attempted."""
         manager = self._create_test_manager()
 
         # Try to load non-existent file
         with self.assertRaises(SaveFileNotFoundError) as cm:
             manager.load('nonexistent')
 
-        # Error message should mention both attempted paths
+        # Error message should show only the exact path attempted
         error_msg = str(cm.exception)
         self.assertIn('nonexistent', error_msg)
-        self.assertIn('nonexistent.save', error_msg)
+        self.assertNotIn('tried:', error_msg)
+
+    def test_load_save_with_various_extensions(self):
+        """Test comprehensive saving and loading with different extensions."""
+        manager = self._create_test_manager()
+
+        # Test different extension scenarios
+        test_cases = [
+            ('project.save', {'type': 'save'}),
+            ('config.json', {'type': 'json'}),
+            ('data.txt', {'type': 'text'}),
+            ('settings.config', {'type': 'config'}),
+            ('extensionless', {'type': 'none'})
+        ]
+
+        for filename, variables in test_cases:
+            # Save with specific extension
+            manager.save_variables(filename, variables)
+
+            # Verify file exists with exact name
+            file_path = os.path.join(self.saves_dir, filename)
+            self.assertTrue(os.path.exists(file_path), f"File {filename} should exist")
+
+            # Load with exact name and verify content
+            data = manager.load(filename)
+            self.assertEqual(data.general_variables, variables)
+
+    def test_subdirectory_with_extensions(self):
+        """Test that subdirectory paths work correctly with various extensions."""
+        manager = self._create_test_manager()
+
+        # Test subdirectories with different extensions
+        test_cases = [
+            ('projects/client.save', {'client': 'A'}),
+            ('projects/client.config', {'client': 'B'}),
+            ('configs/database.json', {'db': 'test'}),
+            ('data/export', {'export': 'data'})
+        ]
+
+        for filepath, variables in test_cases:
+            # Save to subdirectory with extension
+            manager.save_variables(filepath, variables)
+
+            # Verify file exists with exact path
+            file_path = os.path.join(self.saves_dir, filepath)
+            self.assertTrue(os.path.exists(file_path), f"File {filepath} should exist")
+
+            # Load with exact path and verify content
+            data = manager.load(filepath)
+            self.assertEqual(data.general_variables, variables)
 
 
 if __name__ == '__main__':

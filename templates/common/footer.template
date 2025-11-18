@@ -1,0 +1,20 @@
+VARS:
+  - contact_email:
+      description: "Contact email address"
+  - footer_text:
+      description: "Footer message or disclaimer"
+      default: "Confidential"
+  - version:
+      description: "Document version number"
+      default: "1.0"
+
+### TEMPLATE ###
+[cyan]─────────────────────────────────────────────────────────────[/cyan]
+
+[yellow]{{ footer_text }}[/yellow]
+
+{% if contact_email %}
+[dim]Contact: [cyan]{{ contact_email }}[/cyan][/dim]
+{% endif %}
+
+[dim]Version: {{ version }}[/dim]

@@ -105,6 +105,17 @@ SHOW_CONFIG_ON_STARTUP = True
 COLOR_OUTPUT_ENABLED = True
 """Enable terminal color formatting for output"""
 
+VALIDATE_ON_STARTUP = False
+"""
+Run file validation check on startup to detect duplicate filenames.
+Validation checks for duplicate filenames (ignoring extensions) within the same directory.
+Duplicates across different subdirectories are allowed.
+Only checks within templates/ and saves/ directories.
+
+This validation runs before both standard interactive startup (start()) and quick-launch mode
+(quick_launch()), ensuring file integrity is checked regardless of how the application starts.
+"""
+
 
 # ============================================================================
 # Display Settings - Terminal Width & Wrapping

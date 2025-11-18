@@ -21,8 +21,8 @@ from colorama import Fore, Back, Style as ColoramaStyle
 
 from configuration import (
     BANNER_ASCII, PROMPT_TEMPLATE, COMMAND_ALIASES, SHOW_CONFIG_ON_STARTUP,
-    SHOW_UNDEFINED_SUMMARY, TEMPLATES_DIR, SAVES_DIR, STATE_FILE, HISTORY_FILE, 
-    VERSION, APP_NAME, MODULES_DIR
+    SHOW_UNDEFINED_SUMMARY, TEMPLATES_DIR, SAVES_DIR, STATE_FILE, HISTORY_FILE,
+    VERSION, APP_NAME, MODULES_DIR, VALIDATE_ON_STARTUP
 )
 
 from state_manager import state_manager
@@ -32,6 +32,7 @@ from template_renderer import template_renderer, RenderResult, ColorFormatter
 from history_logger import history_logger
 from shell_completers import ShellCompleter
 from display_manager import display_manager
+from file_validator import FileValidator, ValidationResult
 
 
 class InteractiveShell:
@@ -42,6 +43,7 @@ class InteractiveShell:
         self.renderer = template_renderer
         self.display_manager = display_manager
         self.color_formatter = ColorFormatter()
+        self.file_validator = FileValidator(TEMPLATES_DIR, SAVES_DIR)
         self.current_template: Optional['TemplateDefinition'] = None
         self.current_save_path: Optional[str] = None
         self.restore_on_start = restore_on_start
@@ -65,6 +67,9 @@ class InteractiveShell:
         self.display_banner()
         if SHOW_CONFIG_ON_STARTUP:
             self.display_configuration()
+
+        if VALIDATE_ON_STARTUP:
+            self._run_validation(show_success=False)
 
         # Handle restore flag
         if not self.restore_on_start:
@@ -108,6 +113,9 @@ class InteractiveShell:
         self.display_banner()
         if SHOW_CONFIG_ON_STARTUP:
             self.display_configuration()
+
+        if VALIDATE_ON_STARTUP:
+            self._run_validation(show_success=False)
 
         # Handle restore flag (same semantics as start())
         if not self.restore_on_start:
@@ -451,6 +459,7 @@ class InteractiveShell:
             ["ls", self._get_aliases_for('ls'), "ls", "Show variables table"],
             ["revert", self._get_aliases_for('revert'), "revert", "Toggle previous template state"],
             ["restore", self._get_aliases_for('restore'), "restore", "Restore state from before last program start"],
+            ["validate", self._get_aliases_for('validate'), "validate", "Check for duplicate filenames"],
             ["help", self._get_aliases_for('help'), "help [command]", "Show this help or command details"],
             ["exit", self._get_aliases_for('exit'), "exit", "Exit the shell"],
         ]
@@ -603,6 +612,28 @@ allows you to restore that backup at any time during the session.
 
 [bold]Related:[/bold] revert, use
 """,
+            'validate': """
+[cyan][bold]Command: validate[/bold][/cyan]
+[bold]Syntax:[/bold]  validate
+
+[bold]Description:[/bold]
+Check templates/ and saves/ directories for duplicate filenames (ignoring
+extensions) within the same directory. Duplicates across different subdirectories
+are allowed and will not be reported.
+
+This same validation can be run automatically on startup by setting
+VALIDATE_ON_STARTUP = True in configuration.py.
+
+[bold]Examples:[/bold]
+  validate   # Check for duplicate filenames
+
+[bold]Use Cases:[/bold]
+- Ensure no naming conflicts before creating new templates/saves
+- Verify directory structure after bulk file operations
+- Troubleshoot unexpected file loading behavior
+
+[bold]Related:[/bold] use, load, save
+""",
             'help': f"""
 [cyan][bold]Command: help[/bold][/cyan]
 [bold]Aliases:[/bold] {self._get_aliases_for('help')}
@@ -702,6 +733,43 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
                 self._display_error("No backup state available")
         except Exception as e:
             self._display_error(f"Restore failed: {e}")
+
+    def cmd_validate(self, args: list[str]):
+        """Validate templates and saves directories for duplicate filenames."""
+        self._run_validation(show_success=True)
+
+    def _run_validation(self, show_success: bool = True):
+        """
+        Run file validation and display results.
+
+        Args:
+            show_success: Whether to display success message when no duplicates found
+        """
+        result = self.file_validator.validate()
+
+        if not result.has_duplicates:
+            if show_success:
+                success_msg = f"No duplicates found. Checked {result.templates_checked} files in templates directory and {result.saves_checked} files in saves directory."
+                print(self.color_formatter.format(f"[green]{success_msg}[/green]"))
+        else:
+            # Build table data for duplicates
+            headers = ["Directory", "Basename", "Conflicting Files"]
+            rows = []
+
+            for dup in result.duplicates:
+                rows.append([
+                    dup.directory,
+                    dup.basename,
+                    ", ".join(dup.files)
+                ])
+
+            # Display the table
+            table_output = self._format_table(headers, rows)
+            print(self.color_formatter.format(f"[red]{table_output}[/red]"))
+
+            # Display summary
+            summary = f"Found {result.get_duplicate_count()} duplicate(s) in {result.templates_checked} files in templates directory and {result.saves_checked} files in saves directory"
+            print(self.color_formatter.format(f"[red]{summary}[/red]"))
 
     def cmd_exit(self, args: list[str]):
         """Exit shell."""
