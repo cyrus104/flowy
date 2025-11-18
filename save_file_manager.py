@@ -153,9 +153,16 @@ class SaveFileData:
 class SaveFileManager:
     """
     Manages INI-format save files with section hierarchy support.
-    
+
     Sections: [general] + template-specific (e.g., [reports/monthly.template])
     Template sections override [general]. Supports subdirectories.
+
+    Backward Compatibility:
+    - Save files can be specified with or without the .save extension
+    - If a path is provided without .save and the file doesn't exist,
+      the manager will automatically check for a .save version
+    - This ensures legacy save files (e.g., 'client.save') continue to work
+      even when referenced as 'client'
     """
     
     def __init__(self, saves_dir: str = None):
@@ -167,12 +174,34 @@ class SaveFileManager:
 
         Args:
             save_path: Relative path (e.g., 'client_a' or 'projects/client')
+
+        Backward Compatibility:
+        - First attempts to open the path as provided
+        - If not found and path doesn't end with .save, tries appending .save
+        - This allows both 'client' and 'client.save' to work
         """
         # Use the path as provided by the user
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
 
+        # Track attempted paths for error message
+        attempted_paths = [save_path]
+
         if not os.path.exists(full_path):
-            raise SaveFileNotFoundError(f"Save file not found: {save_path}", save_path)
+            # Backward compatibility: try .save extension if not already present
+            if not save_path.endswith('.save'):
+                save_path_with_ext = save_path + '.save'
+                full_path_with_ext = os.path.normpath(os.path.join(self.saves_dir, save_path_with_ext))
+                attempted_paths.append(save_path_with_ext)
+
+                if os.path.exists(full_path_with_ext):
+                    full_path = full_path_with_ext
+                else:
+                    raise SaveFileNotFoundError(
+                        f"Save file not found (tried: {', '.join(attempted_paths)})",
+                        save_path
+                    )
+            else:
+                raise SaveFileNotFoundError(f"Save file not found: {save_path}", save_path)
 
         try:
             config = configparser.ConfigParser(allow_no_value=True)
@@ -188,8 +217,20 @@ class SaveFileManager:
         Args:
             save_path: Relative path (e.g., 'client_a' or 'projects/client')
             save_data: SaveFileData object to write
+
+        Backward Compatibility:
+        - If a .save file exists at the legacy path, save to that location
+        - Otherwise save to the path as provided
         """
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
+
+        # Backward compatibility: if .save version exists, use that
+        if not save_path.endswith('.save'):
+            save_path_with_ext = save_path + '.save'
+            full_path_with_ext = os.path.normpath(os.path.join(self.saves_dir, save_path_with_ext))
+            if os.path.exists(full_path_with_ext):
+                full_path = full_path_with_ext
+
         self._ensure_directory_exists(full_path)
 
         config = save_data.to_configparser()
@@ -228,8 +269,12 @@ class SaveFileManager:
         
         if template_path:
             # Create new immutable instance with updated template section
+            # Merge existing template section variables with new ones
             new_template_sections = save_data.template_sections.copy()
-            new_template_sections[section_name] = variables.copy()
+            existing_template_vars = new_template_sections.get(section_name, {})
+            merged_template_vars = existing_template_vars.copy()
+            merged_template_vars.update(variables)
+            new_template_sections[section_name] = merged_template_vars
             new_save_data = SaveFileData(
                 save_data.path,
                 save_data.general_variables,
@@ -237,9 +282,12 @@ class SaveFileManager:
             )
         else:
             # Create new immutable instance with updated general variables
+            # Merge existing general variables with new ones
+            merged_general = save_data.general_variables.copy()
+            merged_general.update(variables)
             new_save_data = SaveFileData(
                 save_data.path,
-                variables.copy(),
+                merged_general,
                 save_data.template_sections
             )
         

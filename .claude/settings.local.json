@@ -5,7 +5,8 @@
       "Bash(python -m unittest:*)",
       "Bash(python tests/test_state_manager.py:*)",
       "Bash(git checkout:*)",
-      "Bash(python test_interactive_shell.py:*)"
+      "Bash(python test_interactive_shell.py:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

@@ -30,11 +30,19 @@ def _get_template_files() -> List[str]:
 
 
 def _get_save_files() -> List[str]:
-    """Get all relative save paths recursively (no extension manipulation)."""
+    """Get all relative save paths recursively (no extension manipulation).
+
+    Filters out hidden files and directories (names starting with '.')
+    to avoid surfacing system artifacts like .DS_Store, .gitkeep, etc.
+    """
     saves = []
     saves_path = Path(SAVES_DIR)
     if saves_path.exists():
         for path in saves_path.rglob("*"):
+            # Skip hidden files and directories (names starting with '.')
+            if any(part.startswith('.') for part in path.parts):
+                continue
+
             if path.is_file():
                 # Return relative paths as-is without extension manipulation
                 rel_path = path.relative_to(saves_path).as_posix()

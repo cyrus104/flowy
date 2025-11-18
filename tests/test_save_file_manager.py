@@ -259,6 +259,67 @@ debug = false
         result = load_variables_for_template('conv', 'test.template', self.saves_dir)
         self.assertEqual(result['test'], 'value')
 
+    def test_backward_compatibility_load_with_save_extension(self):
+        """Test loading legacy .save files without specifying extension."""
+        manager = self._create_test_manager()
+
+        # Create a legacy save file with .save extension
+        legacy_path = os.path.join(self.saves_dir, 'legacy.save')
+        content = """[general]
+company = Legacy Corp
+"""
+        with open(legacy_path, 'w') as f:
+            f.write(content)
+
+        # Load without .save extension should find the file
+        data = manager.load('legacy')
+        self.assertEqual(data.general_variables['company'], 'Legacy Corp')
+
+    def test_backward_compatibility_save_to_existing_save_file(self):
+        """Test that saving to path with existing .save file updates the .save file."""
+        manager = self._create_test_manager()
+
+        # Create a legacy .save file
+        legacy_path = os.path.join(self.saves_dir, 'client.save')
+        with open(legacy_path, 'w') as f:
+            f.write('[general]\nold = value\n')
+
+        # Save using extensionless path should update the .save file
+        manager.save_variables('client', {'new': 'updated'})
+
+        # Verify the .save file was updated (not a new extensionless file)
+        self.assertTrue(os.path.exists(legacy_path))
+        self.assertFalse(os.path.exists(os.path.join(self.saves_dir, 'client')))
+
+        # Verify content
+        data = manager.load('client')
+        self.assertEqual(data.general_variables['new'], 'updated')
+
+    def test_backward_compatibility_new_files_extensionless(self):
+        """Test that new save files are created without .save extension."""
+        manager = self._create_test_manager()
+
+        # Save to a new path (no existing .save file)
+        manager.save_variables('modern', {'test': 'value'})
+
+        # Should create extensionless file
+        modern_path = os.path.join(self.saves_dir, 'modern')
+        self.assertTrue(os.path.exists(modern_path))
+        self.assertFalse(os.path.exists(os.path.join(self.saves_dir, 'modern.save')))
+
+    def test_backward_compatibility_error_message_shows_both_attempts(self):
+        """Test that error message shows both attempted paths."""
+        manager = self._create_test_manager()
+
+        # Try to load non-existent file
+        with self.assertRaises(SaveFileNotFoundError) as cm:
+            manager.load('nonexistent')
+
+        # Error message should mention both attempted paths
+        error_msg = str(cm.exception)
+        self.assertIn('nonexistent', error_msg)
+        self.assertIn('nonexistent.save', error_msg)
+
 
 if __name__ == '__main__':
     unittest.main()

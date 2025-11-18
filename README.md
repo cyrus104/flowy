@@ -205,6 +205,21 @@ template-assistant/
 
 **Note:** Save files (in `saves/`) no longer require `.save` extension and can be organized in subdirectories with any naming convention.
 
+### 🔄 Backward Compatibility
+
+The save file manager supports both modern (extensionless) and legacy (`.save`) file naming:
+
+- **Modern**: `saves/client`, `saves/projects/demo`
+- **Legacy**: `saves/client.save`, `saves/projects/demo.save`
+
+**Automatic Resolution:**
+- When loading `client`, the manager first checks for `saves/client`
+- If not found, automatically tries `saves/client.save`
+- When saving to `client`, writes to `saves/client.save` if it already exists
+- Otherwise creates new file as `saves/client` (modern style)
+
+This ensures legacy save files continue to work without modification while encouraging the modern extensionless convention for new files.
+
 ## 🐍 Python Module System
 
 **Call custom Python functions directly from templates!**

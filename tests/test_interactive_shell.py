@@ -72,7 +72,42 @@ class TestShellCompleters(unittest.TestCase):
         saves = _get_save_files()
         self.assertIn('test', saves)
         self.assertIn('projects/client', saves)
-    
+
+    def test_get_save_files_filters_hidden_files(self):
+        """Test that _get_save_files excludes hidden files and directories."""
+        # Create normal save files
+        self.create_test_save('normal_file')
+
+        # Create subdirectory for nested save
+        (self.saves_dir / 'projects').mkdir(exist_ok=True)
+        self.create_test_save('projects/client')
+
+        # Create hidden files that should be filtered out
+        (self.saves_dir / '.DS_Store').touch()
+        (self.saves_dir / '.gitkeep').touch()
+
+        # Create hidden directory with file inside
+        hidden_dir = self.saves_dir / '.hidden'
+        hidden_dir.mkdir()
+        (hidden_dir / 'secret').touch()
+
+        # Create file in directory that starts with dot
+        dotdir = self.saves_dir / '.cache'
+        dotdir.mkdir()
+        (dotdir / 'file').touch()
+
+        saves = _get_save_files()
+
+        # Normal files should be included
+        self.assertIn('normal_file', saves)
+        self.assertIn('projects/client', saves)
+
+        # Hidden files should be excluded
+        self.assertNotIn('.DS_Store', saves)
+        self.assertNotIn('.gitkeep', saves)
+        self.assertNotIn('.hidden/secret', saves)
+        self.assertNotIn('.cache/file', saves)
+
     def test_command_completion(self):
         """Test command completion."""
         test_aliases = {
@@ -596,6 +631,105 @@ class TestQuickLaunch(unittest.TestCase):
                             # Verify startup display methods called
                             mock_banner.assert_called_once()
                             mock_config.assert_called_once()
+
+
+class TestRichMarkupToANSI(unittest.TestCase):
+    """Test Rich-style markup conversion to ANSI escape codes."""
+
+    def setUp(self):
+        """Set up test environment."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.templates_dir = Path(self.temp_dir) / 'templates'
+        self.saves_dir = Path(self.temp_dir) / 'saves'
+        self.templates_dir.mkdir()
+        self.saves_dir.mkdir()
+
+    def tearDown(self):
+        """Clean up test environment."""
+        shutil.rmtree(self.temp_dir)
+
+    def test_display_error_converts_markup_to_ansi(self):
+        """Test that _display_error converts Rich markup to ANSI codes."""
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch('interactive_shell.state_manager'), \
+             patch('interactive_shell.history_logger'):
+
+            shell = InteractiveShell()
+
+            # Patch print to capture output
+            with patch('builtins.print') as mock_print:
+                shell._display_error("Test error message")
+
+                # Get the printed string
+                self.assertEqual(mock_print.call_count, 1)
+                printed_output = mock_print.call_args[0][0]
+
+                # Verify markup is NOT present (should be converted)
+                self.assertNotIn('[red]', printed_output)
+                self.assertNotIn('[/red]', printed_output)
+                self.assertNotIn('[bold]', printed_output)
+                self.assertNotIn('[/bold]', printed_output)
+
+                # Verify ANSI escape codes ARE present
+                self.assertIn('\x1b[', printed_output)
+
+                # Verify the actual message text is preserved
+                self.assertIn('Test error message', printed_output)
+
+    def test_display_success_converts_markup_to_ansi(self):
+        """Test that _display_success converts Rich markup to ANSI codes."""
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch('interactive_shell.state_manager'), \
+             patch('interactive_shell.history_logger'):
+
+            shell = InteractiveShell()
+
+            # Patch print to capture output
+            with patch('builtins.print') as mock_print:
+                shell._display_success("Success message")
+
+                # Get the printed string
+                self.assertEqual(mock_print.call_count, 1)
+                printed_output = mock_print.call_args[0][0]
+
+                # Verify markup is NOT present
+                self.assertNotIn('[green]', printed_output)
+                self.assertNotIn('[/green]', printed_output)
+
+                # Verify ANSI escape codes ARE present
+                self.assertIn('\x1b[', printed_output)
+
+                # Verify the actual message text is preserved
+                self.assertIn('Success message', printed_output)
+
+    def test_display_configuration_converts_markup_to_ansi(self):
+        """Test that display_configuration converts Rich markup to ANSI codes."""
+        with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
+             patch('interactive_shell.SAVES_DIR', str(self.saves_dir)), \
+             patch('interactive_shell.state_manager'), \
+             patch('interactive_shell.history_logger'):
+
+            shell = InteractiveShell()
+
+            # Patch print to capture output
+            with patch('builtins.print') as mock_print:
+                shell.display_configuration()
+
+                # Get all printed strings
+                self.assertGreater(mock_print.call_count, 0)
+                all_output = ' '.join([str(call[0][0]) for call in mock_print.call_args_list])
+
+                # Verify markup is NOT present
+                self.assertNotIn('[cyan]', all_output)
+                self.assertNotIn('[/cyan]', all_output)
+
+                # Verify ANSI escape codes ARE present
+                self.assertIn('\x1b[', all_output)
+
+                # Verify configuration text is preserved
+                self.assertIn('Configuration', all_output)
 
 
 if __name__ == '__main__':

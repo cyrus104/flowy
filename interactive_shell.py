@@ -59,8 +59,6 @@ class InteractiveShell:
             completer=self.completer,
             complete_while_typing=True,
         )
-
-        colorama.init()
     
     def start(self):
         """Main entry point - display banner and start command loop."""
