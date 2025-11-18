@@ -1,6 +1,6 @@
 venv/
 .history
-.state
+.state*
 __pycache__/
 *.pyc
 .DS_Store
