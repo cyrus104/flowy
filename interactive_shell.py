@@ -28,7 +28,7 @@ from configuration import (
 from state_manager import state_manager
 from save_file_manager import save_file_manager
 from template_parser import TemplateParser, TemplateNotFoundError, TemplateParseError, TemplateDefinition
-from template_renderer import template_renderer, RenderResult
+from template_renderer import template_renderer, RenderResult, ColorFormatter
 from history_logger import history_logger
 from shell_completers import ShellCompleter
 from display_manager import display_manager
@@ -41,6 +41,7 @@ class InteractiveShell:
         self.template_parser = TemplateParser(TEMPLATES_DIR)
         self.renderer = template_renderer
         self.display_manager = display_manager
+        self.color_formatter = ColorFormatter()
         self.current_template: Optional['TemplateDefinition'] = None
         self.current_save_path: Optional[str] = None
         self.restore_on_start = restore_on_start
@@ -84,7 +85,7 @@ class InteractiveShell:
                 try:
                     self.current_template = self.template_parser.parse(template_path)
                     self.completer.update_template(self.current_template)
-                    print(f"[green]Restored session: {template_path}[/green]")
+                    print(self.color_formatter.format(f"[green]Restored session: {template_path}[/green]"))
                 except Exception:
                     pass  # Ignore corrupted template on startup
 
@@ -127,7 +128,7 @@ class InteractiveShell:
                 try:
                     self.current_template = self.template_parser.parse(existing_template)
                     self.completer.update_template(self.current_template)
-                    print(f"[green]Restored session: {existing_template}[/green]")
+                    print(self.color_formatter.format(f"[green]Restored session: {existing_template}[/green]"))
                 except Exception:
                     pass  # Ignore corrupted template on startup
 
@@ -135,11 +136,11 @@ class InteractiveShell:
             # Execute use command with template (and optionally save)
             if save_path:
                 # Use command with both template and save triggers auto-render
-                print(f"[cyan]Quick launch: Loading {template_path} with {save_path}[/cyan]")
+                print(self.color_formatter.format(f"[cyan]Quick launch: Loading {template_path} with {save_path}[/cyan]"))
                 self.cmd_use([template_path, save_path])
             else:
                 # Just load the template
-                print(f"[cyan]Quick launch: Loading {template_path}[/cyan]")
+                print(self.color_formatter.format(f"[cyan]Quick launch: Loading {template_path}[/cyan]"))
                 self.cmd_use([template_path])
 
             print()  # Add blank line before interactive prompt
@@ -147,7 +148,7 @@ class InteractiveShell:
         except Exception as e:
             # Display error but continue to interactive mode
             self._display_error(f"Quick launch failed: {e}")
-            print("[yellow]Entering interactive mode...[/yellow]\n")
+            print(self.color_formatter.format("[yellow]Entering interactive mode...[/yellow]\n"))
 
         # Enter interactive command loop
         self.run()
@@ -166,7 +167,8 @@ class InteractiveShell:
   State:     {STATE_FILE}
   History:   {HISTORY_FILE}
 """
-        print(self.display_manager.wrap_text(config_text))
+        formatted_text = self.color_formatter.format(config_text)
+        print(self.display_manager.wrap_text(formatted_text))
     
     def run(self):
         """Main command loop."""
@@ -177,7 +179,7 @@ class InteractiveShell:
                     with patch_stdout():
                         user_input = self.session.prompt(prompt)
                 except KeyboardInterrupt:
-                    print("\n[red]Command cancelled.[/red]")
+                    print(self.color_formatter.format("\n[red]Command cancelled.[/red]"))
                     continue
                 
                 if not user_input.strip():
@@ -290,10 +292,9 @@ class InteractiveShell:
             self._display_error(f"Failed to load save file: {e}")
             return
 
-        # Use canonical path with extension for persistence
-        canonical_save_path = save_path if save_path.endswith('.save') else save_path + '.save'
+        # Use save path as-is (no extension modification)
         state_manager.set_variables(variables)
-        self.current_save_path = canonical_save_path
+        self.current_save_path = save_path
 
         # Build comparison table
         headers = ["Variable", "Current Value", "Loaded Value"]
@@ -308,7 +309,7 @@ class InteractiveShell:
 
         # Handle empty variables case
         if not rows:
-            self._display_success(f"Loaded save file: {canonical_save_path} (no variables found)")
+            self._display_success(f"Loaded save file: {save_path} (no variables found)")
             return
 
         # Display the comparison table with wrapping
@@ -316,8 +317,8 @@ class InteractiveShell:
         wrapped_table = self.display_manager.wrap_text(table)
         print(wrapped_table)
 
-        # Add success message with canonical path
-        self._display_success(f"Loaded save file: {canonical_save_path}")
+        # Add success message
+        self._display_success(f"Loaded save file: {save_path}")
     
     def cmd_set(self, args: list[str]):
         """Set variable value."""
@@ -375,16 +376,13 @@ class InteractiveShell:
         if not self.current_template:
             self._display_error("Load template first with 'use'")
             return
-        
+
         if not args:
             self._display_error("Usage: save <save_path>")
             return
-        
+
         save_path = args[0]
-        # Add .save extension if not present
-        if not save_path.endswith('.save'):
-            save_path = save_path + '.save'
-        
+
         try:
             variables = state_manager.get_all_variables()
             save_file_manager.save_variables(save_path, variables, self.current_template.relative_path)
@@ -407,12 +405,12 @@ class InteractiveShell:
             # Wrap output to terminal width
             wrapped_output = self.display_manager.wrap_text(result.output)
             print(wrapped_output)
-            
+
             if not result.success:
-                print(f"\n[red]{result.format_error()}[/red]")
-            
+                print(self.color_formatter.format(f"\n[red]{result.format_error()}[/red]"))
+
             if result.undefined_variables and SHOW_UNDEFINED_SUMMARY:
-                print(f"\n[red]Undefined variables: {', '.join(result.undefined_variables)}[/red]")
+                print(self.color_formatter.format(f"\n[red]Undefined variables: {', '.join(result.undefined_variables)}[/red]"))
                 
         except Exception as e:
             self._display_error(f"Render failed: {e}")
@@ -442,7 +440,7 @@ class InteractiveShell:
     
     def _display_general_help(self):
         """Display overview of all available commands."""
-        print("\n[cyan][bold]Available Commands:[/bold][/cyan]\n")
+        print(self.color_formatter.format("\n[cyan][bold]Available Commands:[/bold][/cyan]\n"))
         
         headers = ["Command", "Aliases", "Syntax", "Description"]
         rows = [
@@ -461,7 +459,7 @@ class InteractiveShell:
         
         table = self._format_table(headers, rows)
         print(table)
-        print("\n[green]Tip: Type 'help <command>' for detailed information about a specific command.[/green]\n")
+        print(self.color_formatter.format("\n[green]Tip: Type 'help <command>' for detailed information about a specific command.[/green]\n"))
     
     def _display_command_help(self, command: str):
         """Display detailed help for a specific command."""
@@ -636,15 +634,15 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
         }
         
         if command in help_text:
-            print(help_text[command])
+            print(self.color_formatter.format(help_text[command]))
         else:
             self._display_error(f"Unknown command: {command}")
-            print("[yellow]Type 'help' to see all available commands.[/yellow]")
+            print(self.color_formatter.format("[yellow]Type 'help' to see all available commands.[/yellow]"))
     
     def _display_variables_table(self):
         """Display formatted variables table."""
         if not self.current_template.variables:
-            print("[yellow]No variables defined in template.[/yellow]")
+            print(self.color_formatter.format("[yellow]No variables defined in template.[/yellow]"))
             return
         
         variables = state_manager.get_all_variables()
@@ -713,7 +711,7 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
     
     def _exit(self):
         """Clean exit."""
-        print("\n[green]Goodbye![/green]")
+        print(self.color_formatter.format("\n[green]Goodbye![/green]"))
         sys.exit(0)
     
     def _format_table(self, headers: list[str], rows: list[list[str]]) -> str:
@@ -722,11 +720,11 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
     
     def _display_error(self, message: str):
         """Display formatted error."""
-        print(f"[red][bold]Error:[/bold][/red] {message}")
-    
+        print(self.color_formatter.format(f"[red][bold]Error:[/bold][/red] {message}"))
+
     def _display_success(self, message: str):
         """Display formatted success."""
-        print(f"[green]{message}[/green]")
+        print(self.color_formatter.format(f"[green]{message}[/green]"))
 
 
 def main():

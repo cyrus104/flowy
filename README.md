@@ -58,7 +58,7 @@ Start Template Assistant with pre-loaded template and save file:
 
 ```bash
 # Load template and save file, auto-render, then enter interactive mode
-python main.py --template example.template --save example.save
+python main.py --template example.template --save example
 
 # Load only template, enter interactive mode
 python main.py --template reports/monthly.template
@@ -83,7 +83,7 @@ python main.py
 |---------|---------|----------|
 | **Commands** | Empty input or space | `r↹` → `render`, `ll↹` → `ls` |
 | **Templates** | `use ` | `use rep↹` → `reports/monthly.template` |
-| **Saves** | `load `, `save ` | `load cli↹` → `clients/demo.save` |
+| **Saves** | `load `, `save ` | `load cli↹` → `clients/demo` |
 | **Variables** | `set `, `unset ` | `set cli↹` → `client_name` |
 | **Options** | `set var ` | `set type↹` → `daily`, `weekly` |
 
@@ -203,6 +203,8 @@ template-assistant/
 └── requirements.txt
 ```
 
+**Note:** Save files (in `saves/`) no longer require `.save` extension and can be organized in subdirectories with any naming convention.
+
 ## 🐍 Python Module System
 
 **Call custom Python functions directly from templates!**
@@ -266,7 +268,7 @@ export TEMPLATE_ASSISTANT_MODULES=/custom/modules
 
 ### ✅ Test Module Demo
 ```bash
-use module_demo.template module_demo.save
+use module_demo.template module_demo
 render
 ```
 
@@ -318,7 +320,7 @@ template-specific OVERRIDES [general]
 [general.company_name] → "Example Corp" (ignored for this template)
 ```
 
-### 📁 Example: `saves/example.save`
+### 📁 Example: `saves/example`
 ```ini
 [general]
 company_name = Example Corp
@@ -330,25 +332,27 @@ client_name = Acme Corporation  # OVERRIDES general.company_name
 logo_path = ./logos/company.png  # Auto-loaded for subtemplates
 ```
 
+**Note:** Save files can be named with or without extensions and organized in subdirectories (e.g., `saves/projects/client_a`).
+
 ### 🔧 API
 
 **SaveFileManager** (production-ready):
 ```python
 # Load merged variables for template
-vars = save_file_manager.load_variables_for_template("client.save", "example.template")
+vars = save_file_manager.load_variables_for_template("client", "example.template")
 
 # Save template-specific variables
-save_file_manager.save_variables("projects/client.save", vars, "reports/monthly.template")
+save_file_manager.save_variables("projects/client", vars, "reports/monthly.template")
 
 # Full save file access
-data = save_file_manager.load("client.save")
-sections = save_file_manager.get_template_sections("client.save")
+data = save_file_manager.load("client")
+sections = save_file_manager.get_template_sections("client")
 ```
 
 **Convenience functions:**
 ```python
-load_save_file("client.save")
-save_variables_to_file("new.save", vars, "my.template")
+load_save_file("client")
+save_variables_to_file("new_save", vars, "my.template")
 ```
 
 ## 📝 Template Format

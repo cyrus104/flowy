@@ -1,7 +1,8 @@
 """
 Shell Completers for Interactive Template Assistant
 
-Provides context-aware tab completion for commands, templates, saves, variables, and options.
+Provides context-aware tab completion for commands, templates, saves (no extension required),
+variables, and options.
 """
 
 import os
@@ -29,15 +30,15 @@ def _get_template_files() -> List[str]:
 
 
 def _get_save_files() -> List[str]:
-    """Get all relative save paths recursively (without .save extension)."""
+    """Get all relative save paths recursively (no extension manipulation)."""
     saves = []
     saves_path = Path(SAVES_DIR)
     if saves_path.exists():
-        for path in saves_path.rglob("*.save"):
-            # Strip the .save extension for display
-            rel_path = path.relative_to(saves_path).as_posix()
-            display_name = rel_path[:-5] if rel_path.endswith('.save') else rel_path
-            saves.append(display_name)
+        for path in saves_path.rglob("*"):
+            if path.is_file():
+                # Return relative paths as-is without extension manipulation
+                rel_path = path.relative_to(saves_path).as_posix()
+                saves.append(rel_path)
     return sorted(saves)
 
 
@@ -75,14 +76,23 @@ def _parse_command_line(text: str) -> tuple[str, List[str]]:
 
 class ShellCompleter(Completer):
     """Context-aware completer for interactive shell."""
-    
+
     def __init__(self, template_def=None):
         self.template_def = template_def
         self.template_parser = TemplateParser(TEMPLATES_DIR)
         self._templates = _get_template_files()
         self._saves = _get_save_files()
-        self._commands = list(COMMAND_ALIASES.keys()) + [alias for aliases in COMMAND_ALIASES.values() for alias in aliases]
-        self._commands = sorted(set(self._commands))
+
+        # Build complete command list: all canonical commands + their aliases
+        all_commands = set()
+        # Add all canonical command names (keys)
+        all_commands.update(COMMAND_ALIASES.keys())
+        # Add all aliases (values)
+        for aliases in COMMAND_ALIASES.values():
+            all_commands.update(aliases)
+        # Add commands that don't have aliases
+        all_commands.update(['load', 'save', 'set', 'unset', 'exit', 'revert'])
+        self._commands = sorted(all_commands)
     
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Generator[Completion, None, None]:
         """Generate completions based on current input context."""

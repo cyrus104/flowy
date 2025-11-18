@@ -31,7 +31,7 @@ TEMPLATES_DIR = os.getenv('TEMPLATE_ASSISTANT_TEMPLATES', './templates')
 """Path to directory containing template files (.template extension)"""
 
 SAVES_DIR = os.getenv('TEMPLATE_ASSISTANT_SAVES', './saves')
-"""Path to directory containing save files (.save extension)"""
+"""Path to directory containing save files (no extension required)"""
 
 MODULES_DIR = os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules')
 """Path to directory containing Python module files for template functions"""

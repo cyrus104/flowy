@@ -132,8 +132,8 @@ class TestSaveFileManager(unittest.TestCase):
     
     def test_load_valid_save_file(self):
         """Test loading valid save file."""
-        # Create test save file
-        test_path = os.path.join(self.saves_dir, 'test.save')
+        # Create test save file (extensionless)
+        test_path = os.path.join(self.saves_dir, 'test')
         content = """[general]
 company = Test Corp
 debug = true
@@ -144,10 +144,10 @@ debug = false
 """
         with open(test_path, 'w') as f:
             f.write(content)
-        
+
         manager = self._create_test_manager()
-        data = manager.load('test.save')
-        
+        data = manager.load('test')
+
         self.assertEqual(data.general_variables['company'], 'Test Corp')
         self.assertEqual(data.template_sections['test.template']['client'], 'Acme')
     
@@ -155,69 +155,69 @@ debug = false
         """Test missing file raises SaveFileNotFoundError."""
         manager = self._create_test_manager()
         with self.assertRaises(SaveFileNotFoundError):
-            manager.load('missing.save')
+            manager.load('missing')
     
     def test_load_invalid_ini(self):
         """Test invalid INI raises SaveFileFormatError."""
-        test_path = os.path.join(self.saves_dir, 'invalid.save')
+        test_path = os.path.join(self.saves_dir, 'invalid')
         with open(test_path, 'w') as f:
             f.write("[invalid\nmissing = value")
-        
+
         manager = self._create_test_manager()
         with self.assertRaises(SaveFileFormatError):
-            manager.load('invalid.save')
+            manager.load('invalid')
     
     def test_save_new_file(self):
         """Test saving to new file."""
         manager = self._create_test_manager()
         data = SaveFileData(
-            os.path.join(self.saves_dir, 'new.save'),
+            os.path.join(self.saves_dir, 'new'),
             general_variables={'test': 'value'}
         )
-        manager.save('new.save', data)
-        
-        self.assertTrue(os.path.exists(os.path.join(self.saves_dir, 'new.save')))
+        manager.save('new', data)
+
+        self.assertTrue(os.path.exists(os.path.join(self.saves_dir, 'new')))
     
     def test_save_subdirectories(self):
         """Test saving with subdirectories."""
         manager = self._create_test_manager()
-        data = SaveFileData(os.path.join(self.saves_dir, 'projects/test.save'))
-        manager.save('projects/test.save', data)
-        
-        self.assertTrue(os.path.exists(os.path.join(self.saves_dir, 'projects', 'test.save')))
+        data = SaveFileData(os.path.join(self.saves_dir, 'projects/test'))
+        manager.save('projects/test', data)
+
+        self.assertTrue(os.path.exists(os.path.join(self.saves_dir, 'projects', 'test')))
     
     def test_save_variables_general(self):
         """Test saving to general section."""
         manager = self._create_test_manager()
-        manager.save_variables('test.save', {'company': 'Acme'})
-        
-        data = manager.load('test.save')
+        manager.save_variables('test', {'company': 'Acme'})
+
+        data = manager.load('test')
         self.assertEqual(data.general_variables['company'], 'Acme')
     
     def test_save_variables_template_specific(self):
         """Test saving to template-specific section."""
         manager = self._create_test_manager()
-        manager.save_variables('test.save', {'client': 'Acme'}, 'test.template')
-        
-        data = manager.load('test.save')
+        manager.save_variables('test', {'client': 'Acme'}, 'test.template')
+
+        data = manager.load('test')
         self.assertEqual(data.template_sections['test.template']['client'], 'Acme')
     
     def test_save_variables_merge_existing(self):
         """Test saving merges with existing file."""
         manager = self._create_test_manager()
-        
+
         # Initial save
-        manager.save_variables('merge.save', {'first': 'value1'})
-        
+        manager.save_variables('merge', {'first': 'value1'})
+
         # Update with new variables
-        manager.save_variables('merge.save', {'second': 'value2'})
-        
-        data = manager.load('merge.save')
+        manager.save_variables('merge', {'second': 'value2'})
+
+        data = manager.load('merge')
         self.assertEqual(data.general_variables, {'first': 'value1', 'second': 'value2'})
     
     def test_load_variables_for_template(self):
         """Test loading merged variables for template."""
-        test_path = os.path.join(self.saves_dir, 'test.save')
+        test_path = os.path.join(self.saves_dir, 'test')
         content = """[general]
 debug = true
 company = General Corp
@@ -228,10 +228,10 @@ debug = false
 """
         with open(test_path, 'w') as f:
             f.write(content)
-        
+
         manager = self._create_test_manager()
-        result = manager.load_variables_for_template('test.save', 'test.template')
-        
+        result = manager.load_variables_for_template('test', 'test.template')
+
         self.assertEqual(result['company'], 'General Corp')  # General
         self.assertEqual(result['client'], 'Acme Corp')     # Template-specific
         self.assertEqual(result['debug'], False)            # Template overrides general
@@ -239,24 +239,24 @@ debug = false
     def test_get_template_sections(self):
         """Test getting list of template sections."""
         manager = self._create_test_manager()
-        manager.save_variables('sections.save', {}, 'reports/daily.template')
-        manager.save_variables('sections.save', {}, 'common/header.template')
-        
-        sections = manager.get_template_sections('sections.save')
+        manager.save_variables('sections', {}, 'reports/daily.template')
+        manager.save_variables('sections', {}, 'common/header.template')
+
+        sections = manager.get_template_sections('sections')
         self.assertIn('reports/daily.template', sections)
         self.assertIn('common/header.template', sections)
     
     def test_convenience_functions(self):
         """Test module-level convenience functions."""
         manager = self._create_test_manager()
-        
+
         # load_save_file
-        manager.save_variables('conv.save', {'test': 'value'})
-        data = load_save_file('conv.save', self.saves_dir)
+        manager.save_variables('conv', {'test': 'value'})
+        data = load_save_file('conv', self.saves_dir)
         self.assertEqual(data.general_variables['test'], 'value')
-        
+
         # load_variables_for_template
-        result = load_variables_for_template('conv.save', 'test.template', self.saves_dir)
+        result = load_variables_for_template('conv', 'test.template', self.saves_dir)
         self.assertEqual(result['test'], 'value')
 
 

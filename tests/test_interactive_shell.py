@@ -65,10 +65,10 @@ class TestShellCompleters(unittest.TestCase):
         self.assertIn('reports/monthly', templates)
     
     def test_get_save_files(self):
-        """Test save file discovery."""
-        self.create_test_save('test.save')
-        self.create_test_save('projects/client.save')
-        
+        """Test save file discovery (extensionless)."""
+        self.create_test_save('test')
+        self.create_test_save('projects/client')
+
         saves = _get_save_files()
         self.assertIn('test', saves)
         self.assertIn('projects/client', saves)
@@ -143,11 +143,11 @@ class TestShellCompleters(unittest.TestCase):
     def test_save_completion_for_use_command(self):
         """Test save file completion as second argument for 'use' command."""
         self.create_test_template('report.template')
-        (self.saves_dir / 'client_a.save').write_text('[general]\nname=Test')
-        (self.saves_dir / 'project_x.save').write_text('[general]\nname=Test')
-        
+        (self.saves_dir / 'client_a').write_text('[general]\nname=Test')
+        (self.saves_dir / 'project_x').write_text('[general]\nname=Test')
+
         completer = ShellCompleter()
-        
+
         # Test 'use report ' should complete save files
         class MockDocument:
             text_before_cursor = 'use report '
@@ -155,7 +155,7 @@ class TestShellCompleters(unittest.TestCase):
         doc = MockDocument()
         completions = list(completer.get_completions(doc, None))
         completion_texts = [c.text for c in completions]
-        # Should show save names without .save extension
+        # Should show save names (extensionless)
         self.assertIn('client_a', completion_texts)
         self.assertIn('project_x', completion_texts)
     
@@ -187,9 +187,9 @@ VARS:
             self.assertIsNotNone(shell.current_template)
     
     def test_extension_optional_load_command(self):
-        """Test cmd_load handles save files without .save extension."""
-        # Create save file
-        example_save = self.saves_dir / 'example.save'
+        """Test cmd_load handles save files (extensionless)."""
+        # Create save file (extensionless)
+        example_save = self.saves_dir / 'example'
         example_save.write_text('[general]\ntitle=Test')
 
         with patch('interactive_shell.TEMPLATES_DIR', str(self.templates_dir)), \
@@ -197,14 +197,13 @@ VARS:
              patch('interactive_shell.state_manager'), \
              patch('interactive_shell.save_file_manager.load_variables_for_template') as mock_load_vars, \
              patch('interactive_shell.history_logger'):
-            
+
             mock_load_vars.return_value = {'title': 'Test'}
             shell = InteractiveShell()
             shell.current_template = Mock(relative_path='test.template')  # Mock current template
-            
+
             shell.cmd_load(['example'])
             mock_load_vars.assert_called()
-            # Verify it tried the extension
     
     def test_tab_completion_use_space(self):
         """Test 'use ' + TAB shows templates, not commands."""
@@ -226,16 +225,16 @@ VARS:
         self.assertNotIn('load', texts)
     
     def test_tab_completion_use_example_space(self):
-        """Test 'use example ' + TAB shows saves."""
-        self.create_test_save('client.save')
-        self.create_test_save('project.save')
+        """Test 'use example ' + TAB shows saves (extensionless)."""
+        self.create_test_save('client')
+        self.create_test_save('project')
 
         completer = ShellCompleter(template_def=None)
-        
+
         class MockDocUseExampleSpace:
             text_before_cursor = 'use example '
             current_line_before_cursor = 'use example '
-        
+
         completions = list(completer.get_completions(MockDocUseExampleSpace(), None))
         texts = [c.text for c in completions]
         self.assertIn('client', texts)
@@ -304,17 +303,17 @@ Title: {{ title }}
     @patch('interactive_shell.state_manager')
     @patch('interactive_shell.save_file_manager')
     def test_cmd_load(self, mock_save, mock_state):
-        """Test load command."""
+        """Test load command (extensionless)."""
         mock_variables = {'name': 'Alice'}
         mock_save.load_variables_for_template.return_value = mock_variables
-        
+
         shell = InteractiveShell()
         shell.current_template = Mock()
         shell.current_template.relative_path = 'test.template'
-        
-        shell.cmd_load(['test.save'])
+
+        shell.cmd_load(['test'])
         mock_save.load_variables_for_template.assert_called_once_with(
-            'test.save', 'test.template'
+            'test', 'test.template'
         )
         mock_state.set_variables.assert_called_once_with(mock_variables)
     
@@ -519,11 +518,11 @@ class TestQuickLaunch(unittest.TestCase):
             with patch.object(shell, 'display_banner'):
                 with patch.object(shell, 'display_configuration'):
                     with patch.object(shell, 'cmd_use') as mock_cmd_use:
-                        shell.quick_launch('test.template', 'test.save')
-                        
+                        shell.quick_launch('test.template', 'test')
+
                         # Verify cmd_use called with both template and save
-                        mock_cmd_use.assert_called_once_with(['test.template', 'test.save'])
-                        
+                        mock_cmd_use.assert_called_once_with(['test.template', 'test'])
+
                         # Verify interactive loop started
                         shell.run.assert_called_once()
     
