@@ -1,5 +1,15 @@
 # Template Assistant - Python Dependencies
-# 
+#
+# Installation Instructions:
+# Run the following command to install all dependencies:
+#   pip install -r requirements.txt
+#
+# Or if using a virtual environment:
+#   python -m venv venv
+#   source venv/bin/activate  # On Windows: venv\Scripts\activate
+#   pip install -r requirements.txt
+#
+#
 # Core Template Engine
 Jinja2>=3.1.0
 # Template rendering engine with control flow and variable substitution

@@ -27,7 +27,7 @@ from configuration import (
 
 from state_manager import state_manager
 from save_file_manager import save_file_manager
-from template_parser import TemplateParser, TemplateNotFoundError, TemplateParseError
+from template_parser import TemplateParser, TemplateNotFoundError, TemplateParseError, TemplateDefinition
 from template_renderer import template_renderer, RenderResult
 from history_logger import history_logger
 from shell_completers import ShellCompleter
@@ -260,21 +260,32 @@ class InteractiveShell:
         if not self.current_template:
             self._display_error("Load template first with 'use'")
             return
-        
+
         if len(args) < 2:
             self._display_error("Usage: set <variable> <value>")
             return
-        
+
         var_name = args[0]
         value = ' '.join(args[1:])
-        
+
         if var_name not in self.current_template.variables:
             self._display_error(f"Unknown variable: {var_name}")
             return
-        
+
         try:
+            # Get old value before setting new one
+            old_value = state_manager.get_variable(var_name)
+
+            # Set the new value
             state_manager.set_variable(var_name, value)
-            self._display_success(f"Set {var_name} = {value}")
+
+            # Format old value for display
+            old_display = f'"{old_value}"' if old_value is not None else "<not set>"
+
+            # Display indented transition message using display helper
+            message = f"  {var_name} from {old_display} to \"{value}\""
+            wrapped_message = self.display_manager.wrap_text(message)
+            print(wrapped_message)
         except Exception as e:
             self._display_error(f"Failed to set variable: {e}")
     

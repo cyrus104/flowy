@@ -129,18 +129,11 @@ class ShellCompleter(Completer):
         
         elif command in ['set', 'unset']:
             # First arg: variable name completion
-            if len(args) == 1:
+            if len(args) == 1 and not text_before_cursor.endswith(' '):
                 vars = _get_variable_names(self.template_def)
                 for var in vars:
                     if var.startswith(word):
                         yield Completion(var, start_position=-len(word))
-            elif command == 'set' and len(args) == 2:
-                # Second arg: variable options completion
-                var_name = args[0]
-                options = _get_variable_options(self.template_def, var_name)
-                for opt in options:
-                    if opt.startswith(word):
-                        yield Completion(opt, start_position=-len(word))
         
         elif command == 'help' or command in COMMAND_ALIASES.get('help', []):
             # First arg: command name completion (works for help, h, and ?)
