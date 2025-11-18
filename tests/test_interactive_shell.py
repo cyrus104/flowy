@@ -108,7 +108,27 @@ class TestShellCompleters(unittest.TestCase):
             self.assertIn('ls', completion_texts)
             self.assertIn('ll', completion_texts)
             self.assertIn('load_template', completion_texts)
-    
+
+    def test_non_aliased_command_completion(self):
+        """Test completion of non-aliased commands like exit and revert."""
+        completer = ShellCompleter()
+
+        # Mock document for testing
+        class MockDocument:
+            def __init__(self, text_before_cursor):
+                self.text_before_cursor = text_before_cursor
+                self.current_line_before_cursor = text_before_cursor
+
+        # Test 'e' → should include 'exit'
+        completions = list(completer.get_completions(MockDocument('e'), None))
+        completion_texts = [c.text for c in completions]
+        self.assertIn('exit', completion_texts)
+
+        # Test 'rev' → should include 'revert'
+        completions = list(completer.get_completions(MockDocument('rev'), None))
+        completion_texts = [c.text for c in completions]
+        self.assertIn('revert', completion_texts)
+
     def test_template_completion_context(self):
         """Test template completion for 'use' command."""
         self.create_test_template('report.template')
@@ -354,23 +374,23 @@ Title: {{ title }}
         
         with patch('interactive_shell.state_manager.get_all_variables', return_value={'name': 'Alice'}):
             shell.cmd_ls([])
-    
-@patch('interactive_shell.state_manager')
-@patch('interactive_shell.TemplateParser')
-def test_cmd_revert(self, mock_parser, mock_state):
-    """Test revert command."""
-    mock_template = Mock()
-    mock_template.relative_path = 'previous.template'
-    mock_parser.parse.return_value = mock_template
-    mock_state.revert.return_value = True
-    mock_state.get_current_template.return_value = 'previous.template'
-    
-    shell = InteractiveShell()
-    shell.cmd_revert([])
-    
-    mock_state.revert.assert_called_once()
-    mock_parser.parse.assert_called_once_with('previous.template')
-    
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.TemplateParser')
+    def test_cmd_revert(self, mock_parser, mock_state):
+        """Test revert command."""
+        mock_template = Mock()
+        mock_template.relative_path = 'previous.template'
+        mock_parser.parse.return_value = mock_template
+        mock_state.revert.return_value = True
+        mock_state.get_current_template.return_value = 'previous.template'
+
+        shell = InteractiveShell()
+        shell.cmd_revert([])
+
+        mock_state.revert.assert_called_once()
+        mock_parser.parse.assert_called_once_with('previous.template')
+
     def test_command_aliases(self):
         """Test command alias resolution."""
         shell = InteractiveShell()

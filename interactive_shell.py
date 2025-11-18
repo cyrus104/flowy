@@ -493,8 +493,8 @@ Load variables from a save file for the currently loaded template.
 The save file should contain a section matching the template name.
 
 [bold]Examples:[/bold]
-  load client              # Load client.save
-  load projects/demo       # Load from subdirectory
+  load client              # Load from save file named 'client' in SAVES_DIR
+  load projects/demo       # Load from subdirectory (respects paths as-is)
 
 [bold]Related:[/bold] use, save, set
 """,
@@ -535,8 +535,8 @@ Save the current variable values to a save file. Creates subdirectories as neede
 The variables are saved in a section matching the current template name.
 
 [bold]Examples:[/bold]
-  save client              # Save to client.save
-  save projects/demo       # Save to subdirectory
+  save client              # Create or update file 'client' in SAVES_DIR
+  save projects/demo       # Save to subdirectory (respects paths as-is)
 
 [bold]Related:[/bold] load, set
 """,
