@@ -83,7 +83,7 @@ BANNER_ASCII = r"""
 COMMAND_ALIASES = {
     'render': ['r', 're'],
     'ls': ['ll'],
-    'use': ['load_template'],
+    'use': [],
     'help': ['h', '?'],
     'restore': ['res'],
     # Users can add custom aliases here as needed

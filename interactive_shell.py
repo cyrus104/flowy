@@ -253,8 +253,13 @@ class InteractiveShell:
         canonical_path = self.current_template.relative_path
         self.completer.update_template(self.current_template)
         state_manager.set_template(canonical_path)
-        
-        self._display_success(f"Loaded: {canonical_path}")
+
+        # Strip .template extension for display (only if it's the suffix)
+        if canonical_path.endswith('.template'):
+            display_name = canonical_path[:-len('.template')]
+        else:
+            display_name = canonical_path
+        self._display_success(f"Loaded: {display_name}")
         
         if save_path:
             self.cmd_load([save_path])
@@ -266,13 +271,16 @@ class InteractiveShell:
         if not self.current_template:
             self._display_error("Load template first with 'use'")
             return
-        
+
         if not args:
             self._display_error("Usage: load <save_path>")
             return
-        
+
         save_path = args[0]
-        
+
+        # Capture current variable state before loading
+        current_variables = state_manager.get_all_variables()
+
         # Delegate extension resolution to SaveFileManager
         try:
             variables = save_file_manager.load_variables_for_template(
@@ -281,13 +289,35 @@ class InteractiveShell:
         except Exception as e:
             self._display_error(f"Failed to load save file: {e}")
             return
-        
+
         # Use canonical path with extension for persistence
         canonical_save_path = save_path if save_path.endswith('.save') else save_path + '.save'
         state_manager.set_variables(variables)
         self.current_save_path = canonical_save_path
-        
-        self._display_success(f"Loaded variables from: {canonical_save_path}")
+
+        # Build comparison table
+        headers = ["Variable", "Current Value", "Loaded Value"]
+        rows = []
+
+        for var_name, loaded_value in variables.items():
+            current_value = current_variables.get(var_name)
+            current_display = f'"{current_value}"' if current_value is not None else "<not set>"
+            loaded_display = f'"{loaded_value}"'
+
+            rows.append([var_name, current_display, loaded_display])
+
+        # Handle empty variables case
+        if not rows:
+            self._display_success(f"Loaded save file: {canonical_save_path} (no variables found)")
+            return
+
+        # Display the comparison table with wrapping
+        table = self._format_table(headers, rows)
+        wrapped_table = self.display_manager.wrap_text(table)
+        print(wrapped_table)
+
+        # Add success message with canonical path
+        self._display_success(f"Loaded save file: {canonical_save_path}")
     
     def cmd_set(self, args: list[str]):
         """Set variable value."""
