@@ -7,7 +7,7 @@
 company_name = Example Corporation
 report_date = 2024-01-15
 
-[templates/module_demo.template]
+[templates/module_demo]
 report_date = 2024-10-25
 description = This comprehensive quarterly report analyzes key performance indicators including revenue growth of 12.5%, customer acquisition metrics showing 18% increase year-over-year, operational efficiency improvements through automation reducing processing time by 35%, and strategic market positioning updates based on competitive analysis and emerging trends in the SaaS sector.
 total_amount = 2568.75
