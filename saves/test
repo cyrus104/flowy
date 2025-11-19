@@ -1,0 +1,12 @@
+[example.template]
+company_name = Example Corporation
+author = Template Assistant User
+date = 2024-01-15
+debug_mode = False
+default_format = pdf
+client_name = test
+report_type = monthly                   # From VARS options: ['daily','weekly','monthly']
+include_summary = yes                   # Boolean: overrides default
+output_format = html                    # Overrides general default_format
+project_list = ['Project Alpha', 'Project Beta']
+

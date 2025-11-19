@@ -107,43 +107,71 @@ class ColorFormatter:
         )  # group1=bg_color (e.g., 'blue'), group2=content
         
         self.BOLD_PATTERN = re.compile(
-            r'\[bold\](.*?)\[/bold\]', 
+            r'\[bold\](.*?)\[/bold\]',
             re.DOTALL | re.IGNORECASE
         )  # group1=content
-    
-    def format(self, text: str) -> str:
+
+    def _preprocess_hash_lines(self, text: str) -> str:
+        """Preprocess text to wrap lines starting with # in [green]...[/green] tags."""
+        lines = text.splitlines(keepends=True)
+        processed_lines = []
+
+        for line in lines:
+            # Check if the line (after stripping leading whitespace) starts with #
+            stripped = line.lstrip()
+            if stripped.startswith('#'):
+                # Wrap the entire line with [green]...[/green] tags
+                # Keep line ending outside the tags to avoid recursion issues
+                # Check CRLF before LF since CRLF also ends with LF
+                if line.endswith('\r\n'):
+                    processed_lines.append(f'[green]{line[:-2]}[/green]\r\n')
+                elif line.endswith('\n'):
+                    processed_lines.append(f'[green]{line[:-1]}[/green]\n')
+                else:
+                    processed_lines.append(f'[green]{line}[/green]')
+            else:
+                processed_lines.append(line)
+
+        return ''.join(processed_lines)
+
+    def format(self, text: str, _skip_preprocess: bool = False) -> str:
         """Convert color syntax to ANSI codes."""
+        # Preprocess hash lines first (before color output check)
+        # Skip preprocessing during recursive calls to avoid infinite loops
+        if not _skip_preprocess:
+            text = self._preprocess_hash_lines(text)
+
         if not configuration.COLOR_OUTPUT_ENABLED:
             return self._remove_tags(text)
-        
+
         # Handle nested/combined tags
         text = self._process_tags(text)
         text = self._process_bold(text)
         return text
-    
+
     def _process_tags(self, text: str) -> str:
         """Process color tags with proper fg/bg/combined support."""
         def replace_fg(match):
             fg = match.group(1).lower()
             bg = match.group(2)
             content = match.group(3)
-            
+
             result = ''
             if fg in self.COLORS:
                 result += self.COLORS[fg]
             if bg and bg.lower() in self.BG_COLORS:
                 result += self.BG_COLORS[f'bg:{bg.lower()}']
-            
-            result += self.format(content)  # Recursive for nested tags
+
+            result += self.format(content, _skip_preprocess=True)  # Recursive for nested tags
             result += Style.RESET_ALL
             return result
-        
+
         def replace_bg(match):
             bg_color = match.group(1).lower()
             content = match.group(2)
-            
+
             if f'bg:{bg_color}' in self.BG_COLORS:
-                return self.BG_COLORS[f'bg:{bg_color}'] + self.format(content) + Style.RESET_ALL
+                return self.BG_COLORS[f'bg:{bg_color}'] + self.format(content, _skip_preprocess=True) + Style.RESET_ALL
             return match.group(0)  # Return unchanged if invalid color
         
         # Process fg-only and combined first
@@ -156,8 +184,8 @@ class ColorFormatter:
     def _process_bold(self, text: str) -> str:
         """Process [bold]text[/bold]."""
         def replace_bold(match):
-            return Style.BRIGHT + self.format(match.group(1)) + Style.RESET_ALL
-        
+            return Style.BRIGHT + self.format(match.group(1), _skip_preprocess=True) + Style.RESET_ALL
+
         return self.BOLD_PATTERN.sub(replace_bold, text)
     
     def _remove_tags(self, text: str) -> str:

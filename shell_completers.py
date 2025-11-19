@@ -101,7 +101,7 @@ class ShellCompleter(Completer):
         for aliases in COMMAND_ALIASES.values():
             all_commands.update(aliases)
         # Add commands that don't have aliases
-        all_commands.update(['load', 'save', 'set', 'unset', 'exit', 'revert'])
+        all_commands.update(['load', 'save', 'list', 'set', 'unset', 'exit', 'revert'])
         self._commands = sorted(all_commands)
     
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Generator[Completion, None, None]:
@@ -127,14 +127,14 @@ class ShellCompleter(Completer):
                 for path in self._templates:
                     yield Completion(path, start_position=0)
                 return
-            elif command in ['load', 'save']:
-                # Complete save files for 'load' and 'save' commands
+            elif command in ['load', 'save', 'list']:
+                # Complete save files for 'load', 'save', and 'list' commands
                 for path in self._saves:
                     yield Completion(path, start_position=0)
                 return
         
         # Context-specific completion for arguments
-        if command in ['use', 'load', 'save']:
+        if command in ['use', 'load', 'save', 'list']:
             # First arg: template/save path completion
             if len(args) == 1:
                 paths = self._templates if command == 'use' else self._saves

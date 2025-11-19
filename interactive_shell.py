@@ -9,6 +9,7 @@ Supports both interactive mode and quick launch mode for programmatic command ex
 """
 
 import sys
+import os
 import shlex
 from typing import Optional, Dict, Any
 from pathlib import Path
@@ -325,7 +326,30 @@ class InteractiveShell:
 
         # Add success message
         self._display_success(f"Loaded save file: {save_path}")
-    
+
+    def cmd_list(self, args: list[str]):
+        """List all sections from a save file."""
+        if not args:
+            self._display_error("Usage: list <save_path>")
+            return
+
+        save_path = args[0]
+
+        try:
+            sections = save_file_manager.get_template_sections(save_path)
+        except Exception as e:
+            self._display_error(f"Failed to list sections: {e}")
+            return
+
+        if not sections:
+            print(self.color_formatter.format(f"[yellow]No template sections found in save file: {save_path}[/yellow]"))
+            return
+
+        # Display each section name wrapped in square brackets with cyan color
+        for section in sections:
+            formatted_section = self.color_formatter.format(f"[cyan][{section}][/cyan]")
+            print(formatted_section)
+
     def cmd_set(self, args: list[str]):
         """Set variable value."""
         if not self.current_template:
@@ -383,15 +407,62 @@ class InteractiveShell:
             self._display_error("Load template first with 'use'")
             return
 
+        # Handle default save file prompt when no args provided
         if not args:
-            self._display_error("Usage: save <save_path>")
-            return
+            if self.current_save_path:
+                try:
+                    response = input(f"Save to {self.current_save_path}? (Y/n): ")
+                    response = response.strip().lower()
+                    # Accept empty string or 'y' as confirmation
+                    if response in ("", "y"):
+                        save_path = self.current_save_path
+                    elif response in ("n",):
+                        self._display_error("Save operation cancelled.")
+                        return
+                    else:
+                        # Invalid input - treat as cancellation
+                        self._display_error("Save operation cancelled.")
+                        return
+                except (EOFError, KeyboardInterrupt):
+                    print()  # New line after Ctrl+C/Ctrl+D
+                    self._display_error("Save operation cancelled.")
+                    return
+            else:
+                self._display_error("Usage: save <save_path>")
+                return
+        else:
+            save_path = args[0]
 
-        save_path = args[0]
+        # Check if file exists and prompt for merge confirmation
+        full_path = os.path.normpath(os.path.join(SAVES_DIR, save_path))
+        if os.path.exists(full_path):
+            try:
+                response = input("Save file exists. Merge variables? (Y/n): ")
+                response = response.strip().lower()
+                # Accept empty string or 'y' as confirmation
+                if response in ("", "y"):
+                    pass  # Proceed with saving
+                elif response in ("n",):
+                    self._display_error("Save operation cancelled.")
+                    return
+                else:
+                    # Invalid input - treat as cancellation
+                    self._display_error("Save operation cancelled.")
+                    return
+            except (EOFError, KeyboardInterrupt):
+                print()  # New line after Ctrl+C/Ctrl+D
+                self._display_error("Save operation cancelled.")
+                return
 
         try:
             variables = state_manager.get_all_variables()
             save_file_manager.save_variables(save_path, variables, self.current_template.relative_path)
+
+            # Display saved variables
+            section = self.current_template.relative_path
+            for var_name, value in variables.items():
+                print(f"  Saved [{section}] {var_name} = {value}")
+
             self._display_success(f"Saved variables to: {save_path}")
         except Exception as e:
             self._display_error(f"Failed to save: {e}")
@@ -452,6 +523,7 @@ class InteractiveShell:
         rows = [
             ["use", self._get_aliases_for('use'), "use <template> [save]", "Load template (+ optional auto-render)"],
             ["load", self._get_aliases_for('load'), "load <save>", "Load variables from save file"],
+            ["list", self._get_aliases_for('list'), "list <save>", "Show sections in save file"],
             ["set", self._get_aliases_for('set'), "set <var> <value>", "Set variable value"],
             ["unset", self._get_aliases_for('unset'), "unset <var>", "Remove variable"],
             ["save", self._get_aliases_for('save'), "save <save>", "Save current variables to file"],
@@ -504,6 +576,20 @@ The save file should contain a section matching the template name.
   load projects/demo       # Load from subdirectory (respects paths as-is)
 
 [bold]Related:[/bold] use, save, set
+""",
+            'list': """
+[cyan][bold]Command: list[/bold][/cyan]
+[bold]Syntax:[/bold]  list <save_path>
+
+[bold]Description:[/bold]
+Display all sections (in square brackets) from a save file. Each section typically
+corresponds to a different template's saved variables.
+
+[bold]Examples:[/bold]
+  list client              # Show all sections in 'client' save file
+  list projects/demo       # Show sections from subdirectory
+
+[bold]Related:[/bold] load, save, use
 """,
             'set': """
 [cyan][bold]Command: set[/bold][/cyan]
