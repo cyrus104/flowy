@@ -16,10 +16,10 @@ template-assistant/
 │   ├── template1.template
 │   └── subfolder/
 │       └── template2.template
-├── saves/                    # Variable save files
-│   ├── default.save
+├── saves/                    # Variable save files (no extension required)
+│   ├── default
 │   └── subfolder/
-│       └── custom.save
+│       └── custom
 ├── modules/                  # Python function modules
 │   ├── utils.py
 │   └── helpers.py
@@ -59,6 +59,8 @@ The application supports command-line arguments for immediate rendering:
 python main.py --template <template_path> --save <save_path>
 ```
 
+**Note:** `<save_path>` does not require a file extension (e.g., `client` instead of `client.save`)
+
 This mode will:
 1. Display the startup banner and configuration
 2. Load the specified template
@@ -93,8 +95,8 @@ Loads variables from a save file into the current session. Supports tab completi
 
 **Example:**
 ```
-load client_data.save
-load projects/project_a.save
+load client_data
+load projects/project_a
 ```
 
 #### `set <variable> <value>`
@@ -119,8 +121,8 @@ Saves the current variable state to a file in the saves directory. Creates subdi
 
 **Example:**
 ```
-save current_project.save
-save projects/project_b.save
+save current_project
+save projects/project_b
 ```
 
 #### `render` (alias: `r`, `re`)
@@ -309,9 +311,9 @@ Main content here...
 When a subtemplate is included, the current save file name is automatically passed to the subtemplate. This allows subtemplates to load their own section-specific variables from the same save file.
 
 **Example Workflow:**
-1. Main template: `reports/monthly.template` loaded with save file `client_a.save`
+1. Main template: `reports/monthly.template` loaded with save file `client_a`
 2. Main template includes: `{% include 'common/header.template' %}`
-3. Header subtemplate automatically loads variables from `[common/header.template]` section in `client_a.save`
+3. Header subtemplate automatically loads variables from `[common/header.template]` section in `client_a`
 
 **Save File Structure for Subtemplates:**
 ```ini
@@ -452,6 +454,9 @@ report_frequency = weekly
 - Template-specific sections (matching template paths) override general values
 - Supports folder structure in section names
 
+**File Naming Convention:**
+Save files do not require a file extension. The modern convention is to use extensionless names (e.g., `client`, `projects/demo`). For backward compatibility, files with `.save` extension (e.g., `client.save`) are still supported but considered legacy. When loading a save file, the system automatically checks for both the extensionless version first, then falls back to the `.save` extension if needed.
+
 ## Display and Output Management
 
 ### Terminal Window Optimization
@@ -584,7 +589,7 @@ export TEMPLATE_ASSISTANT_SAVES=/path/to/saves
 
 1. **Command Completion**: All available commands and their aliases
 2. **Template Completion**: All `.template` files in templates folder, including subfolder paths
-3. **Save File Completion**: All `.save` files in saves folder, including subfolder paths
+3. **Save File Completion**: All save files in saves folder (with or without `.save` extension), including subfolder paths
 4. **Variable Completion**: Available variables for `set` and `unset` commands
 5. **Option Completion**: Valid options for variables that define them
 

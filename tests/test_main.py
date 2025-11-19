@@ -34,18 +34,18 @@ class TestArgumentParsing(unittest.TestCase):
             self.assertIsNone(args.save)
     
     def test_parse_arguments_both_args(self):
-        """Test parsing with both --template and --save arguments."""
-        with patch('sys.argv', ['main.py', '--template', 'test.template', '--save', 'test.save']):
+        """Test parsing with both --template and --save arguments (extensionless format)."""
+        with patch('sys.argv', ['main.py', '--template', 'test.template', '--save', 'test']):
             args = parse_arguments()
             self.assertEqual(args.template, 'test.template')
-            self.assertEqual(args.save, 'test.save')
+            self.assertEqual(args.save, 'test')
     
     def test_parse_arguments_short_forms(self):
-        """Test parsing with short form arguments (-t, -s)."""
-        with patch('sys.argv', ['main.py', '-t', 'test.template', '-s', 'test.save']):
+        """Test parsing with short form arguments (-t, -s) using extensionless format."""
+        with patch('sys.argv', ['main.py', '-t', 'test.template', '-s', 'test']):
             args = parse_arguments()
             self.assertEqual(args.template, 'test.template')
-            self.assertEqual(args.save, 'test.save')
+            self.assertEqual(args.save, 'test')
     
     def test_parse_arguments_help(self):
         """Test --help displays usage information."""
@@ -87,16 +87,16 @@ class TestMainFunction(unittest.TestCase):
         mock_shell.start.assert_not_called()
     
     @patch('main.InteractiveShell')
-    @patch('sys.argv', ['main.py', '--template', 'test.template', '--save', 'test.save'])
+    @patch('sys.argv', ['main.py', '--template', 'test.template', '--save', 'test'])
     def test_main_with_both_arguments(self, mock_shell_class):
-        """Test main() with both arguments calls quick_launch()."""
+        """Test main() with both arguments calls quick_launch() using extensionless format."""
         mock_shell = Mock()
         mock_shell_class.return_value = mock_shell
-        
+
         main()
-        
+
         mock_shell_class.assert_called_once()
-        mock_shell.quick_launch.assert_called_once_with('test.template', 'test.save')
+        mock_shell.quick_launch.assert_called_once_with('test.template', 'test')
         mock_shell.start.assert_not_called()
     
     @patch('main.InteractiveShell')

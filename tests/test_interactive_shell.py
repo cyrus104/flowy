@@ -65,7 +65,7 @@ class TestShellCompleters(unittest.TestCase):
         self.assertIn('reports/monthly', templates)
     
     def test_get_save_files(self):
-        """Test save file discovery (extensionless)."""
+        """Test save file discovery with extensionless format."""
         self.create_test_save('test')
         self.create_test_save('projects/client')
 
@@ -210,7 +210,7 @@ class TestShellCompleters(unittest.TestCase):
         doc = MockDocument()
         completions = list(completer.get_completions(doc, None))
         completion_texts = [c.text for c in completions]
-        # Should show save names (extensionless)
+        # Should show save names with extensionless format
         self.assertIn('client_a', completion_texts)
         self.assertIn('project_x', completion_texts)
     
@@ -242,8 +242,8 @@ VARS:
             self.assertIsNotNone(shell.current_template)
     
     def test_extension_optional_load_command(self):
-        """Test cmd_load handles save files (extensionless)."""
-        # Create save file (extensionless)
+        """Test cmd_load handles save files with extensionless format."""
+        # Create save file
         example_save = self.saves_dir / 'example'
         example_save.write_text('[general]\ntitle=Test')
 
@@ -280,7 +280,7 @@ VARS:
         self.assertNotIn('load', texts)
     
     def test_tab_completion_use_example_space(self):
-        """Test 'use example ' + TAB shows saves (extensionless)."""
+        """Test 'use example ' + TAB shows saves with extensionless format."""
         self.create_test_save('client')
         self.create_test_save('project')
 
@@ -352,13 +352,13 @@ Title: {{ title }}
         mock_state.set_template.assert_called_once_with('test.template')
         
         # Test use with save
-        shell.cmd_use(['test.template', 'test.save'])
+        shell.cmd_use(['test.template', 'test'])
         mock_save.load_variables_for_template.assert_called()
     
     @patch('interactive_shell.state_manager')
     @patch('interactive_shell.save_file_manager')
     def test_cmd_load(self, mock_save, mock_state):
-        """Test load command (extensionless)."""
+        """Test load command with extensionless format."""
         mock_variables = {'name': 'Alice'}
         mock_save.load_variables_for_template.return_value = mock_variables
 

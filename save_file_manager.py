@@ -178,7 +178,7 @@ class SaveFileManager:
         Load save file and return SaveFileData object.
 
         Args:
-            save_path: Relative path with exact name/extension (e.g., 'client.save' or 'projects/client.config')
+            save_path: Relative path with exact name/extension (e.g., 'client' or 'projects/client')
         """
         # Use the path exactly as provided by the user
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
@@ -198,7 +198,7 @@ class SaveFileManager:
         Save SaveFileData to file atomically.
 
         Args:
-            save_path: Relative path with exact name/extension (e.g., 'client.save' or 'projects/client.config')
+            save_path: Relative path with exact name/extension (e.g., 'client' or 'projects/client')
             save_data: SaveFileData object to write
         """
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))

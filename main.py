@@ -15,7 +15,7 @@ Usage:
         python main.py --template example.template
 
     Quick launch with template and save file:
-        python main.py --template example.template --save example.save
+        python main.py --template example.template --save example
 
 Quick launch mode automatically loads the specified files, renders the output,
 then drops into interactive mode for further commands.
@@ -41,7 +41,7 @@ Examples:
   python main.py                                    # Interactive mode
   python main.py --template example.template        # Quick launch with template
   python main.py --template report.template \\       # Quick launch with both
-                 --save client.save
+                 --save client
 
 Quick launch mode displays the banner, loads the specified files,
 auto-renders the output, then drops into interactive mode.

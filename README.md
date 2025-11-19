@@ -178,7 +178,7 @@ For detailed testing documentation, writing tests, and CI/CD integration, see [T
 **Pro Tips:**
 - `help` or `?` shows all commands
 - `help <command>` shows detailed usage for a specific command
-- `use template.save` → loads + auto-renders
+- `use template save` → loads + auto-renders
 - `python main.py --template X --save Y` → quick launch with auto-render
 - `Ctrl+C` cancels input, `Ctrl+D` exits
 - `revert` toggles between template states
@@ -269,7 +269,7 @@ template-assistant/
 ├── template_parser.py        # .template parsing
 ├── template_renderer.py      # Jinja2 engine + colors
 ├── module_loader.py          # Python modules (utils.py, helpers.py)
-├── saves/                    # .save files
+├── saves/                    # Save files (no extension required)
 ├── templates/                # .template files
 ├── modules/                  # Python functions
 ├── tests/                    # Unit tests
@@ -278,20 +278,20 @@ template-assistant/
 
 **Note:** Save files (in `saves/`) no longer require `.save` extension and can be organized in subdirectories with any naming convention.
 
-### 🔄 Backward Compatibility
+### 🔄 File Naming & Backward Compatibility
 
-The save file manager supports both modern (extensionless) and legacy (`.save`) file naming:
+Save files use an extensionless naming convention by default. The `.save` extension is legacy but still supported for backward compatibility:
 
 - **Modern**: `saves/client`, `saves/projects/demo`
 - **Legacy**: `saves/client.save`, `saves/projects/demo.save`
 
 **Automatic Resolution:**
-- When loading `client`, the manager first checks for `saves/client`
-- If not found, automatically tries `saves/client.save`
-- When saving to `client`, writes to `saves/client.save` if it already exists
-- Otherwise creates new file as `saves/client` (modern style)
 
-This ensures legacy save files continue to work without modification while encouraging the modern extensionless convention for new files.
+When loading or saving, the system intelligently handles both formats:
+
+- **Loading**: Checks for extensionless file first (e.g., `saves/client`), then tries `.save` extension (e.g., `saves/client.save`) if not found
+- **Saving**: Writes to existing `.save` file if present, otherwise creates new extensionless file
+- **Recommendation**: Use extensionless names for new save files; legacy `.save` files continue to work without modification
 
 ## 🐍 Python Module System
 
@@ -420,7 +420,7 @@ client_name = Acme Corporation  # OVERRIDES general.company_name
 logo_path = ./logos/company.png  # Auto-loaded for subtemplates
 ```
 
-**Note:** Save files can be named with or without extensions and organized in subdirectories (e.g., `saves/projects/client_a`).
+**Note:** Save files can be named without extensions and organized in subdirectories (e.g., `saves/projects/client_a`). The `.save` extension is optional and considered legacy.
 
 ### 🔧 API
 

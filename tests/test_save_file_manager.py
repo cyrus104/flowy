@@ -34,10 +34,10 @@ class TestSaveFileData(unittest.TestCase):
         config = configparser.ConfigParser(allow_no_value=True)
         config['general'] = {'company': 'Test Corp', 'debug': 'true'}
         config['example.template'] = {'client': 'Acme', 'debug': 'false'}
+
+        data = SaveFileData.from_configparser(config, '/test')
         
-        data = SaveFileData.from_configparser(config, '/test.save')
-        
-        self.assertEqual(data.path, '/test.save')
+        self.assertEqual(data.path, '/test')
         self.assertEqual(data.general_variables, {'company': 'Test Corp', 'debug': True})
         self.assertEqual(data.template_sections['example.template'], 
                         {'client': 'Acme', 'debug': False})
@@ -45,7 +45,7 @@ class TestSaveFileData(unittest.TestCase):
     def test_to_configparser_serialization(self):
         """Test serialization to ConfigParser round-trip."""
         data = SaveFileData(
-            '/test.save',
+            '/test',
             general_variables={'company': 'Test Corp'},
             template_sections={'test.template': {'client': 'Acme'}}
         )
@@ -57,21 +57,21 @@ class TestSaveFileData(unittest.TestCase):
     
     def test_get_variables_for_template_general_only(self):
         """Test template with only general variables."""
-        data = SaveFileData('/test.save', 
+        data = SaveFileData('/test',
                            general_variables={'company': 'Test Corp'})
         result = data.get_variables_for_template('missing.template')
         self.assertEqual(result, {'company': 'Test Corp'})
     
     def test_get_variables_for_template_specific_only(self):
         """Test template with only specific variables."""
-        data = SaveFileData('/test.save',
+        data = SaveFileData('/test',
                            template_sections={'test.template': {'client': 'Acme'}})
         result = data.get_variables_for_template('test.template')
         self.assertEqual(result, {'client': 'Acme'})
     
     def test_get_variables_for_template_override(self):
         """Test template-specific overrides general."""
-        data = SaveFileData('/test.save',
+        data = SaveFileData('/test',
                            general_variables={'debug': True},
                            template_sections={'test.template': {'debug': False}})
         result = data.get_variables_for_template('test.template')
@@ -209,7 +209,7 @@ class TestSaveFileData(unittest.TestCase):
             'coordinates': '(10, 20, 30)'
         }
 
-        data = SaveFileData.from_configparser(config, '/test.save')
+        data = SaveFileData.from_configparser(config, '/test')
 
         # Verify project_list is a Python list (not a string)
         project_list = data.general_variables['project_list']
@@ -254,8 +254,8 @@ class TestSaveFileManager(unittest.TestCase):
         return SaveFileManager(self.saves_dir)
     
     def test_load_valid_save_file(self):
-        """Test loading valid save file."""
-        # Create test save file (extensionless)
+        """Test loading valid save file (extensionless format)."""
+        # Create test save file
         test_path = os.path.join(self.saves_dir, 'test')
         content = """[general]
 company = Test Corp
@@ -370,7 +370,7 @@ debug = false
         self.assertIn('common/header.template', sections)
     
     def test_convenience_functions(self):
-        """Test module-level convenience functions."""
+        """Test module-level convenience functions (extensionless format)."""
         manager = self._create_test_manager()
 
         # load_save_file
