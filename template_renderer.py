@@ -215,23 +215,45 @@ class _AutoContextTemplateWrapper:
         """Render with automatic subtemplate variable merging."""
         # Get parent context
         context = args[0] if args else kwargs
-        
+
         # Load subtemplate-specific variables if save file provided
         sub_vars = {}
         if self.save_path:
             try:
-                # Template name from Jinja2 (e.g., 'subtemplate_example.template')
+                # Template name from Jinja2 (e.g., 'subtemplate_example.template' or 'subtemplate_example')
                 sub_relative_path = self.template.name
                 if sub_relative_path and sub_relative_path != '(string)':
+                    # Dual-resolution: support both extensionless and .template variants
+                    # for backward compatibility and to handle mixed old/new style includes
+                    if sub_relative_path.endswith('.template'):
+                        name_without_ext = sub_relative_path[:-9]  # Remove '.template'
+                        name_with_ext = sub_relative_path
+                    else:
+                        name_without_ext = sub_relative_path
+                        name_with_ext = sub_relative_path + '.template'
+
+                    # Try current name first (backward compatibility)
                     sub_vars = self.save_manager.load_variables_for_template(
                         self.save_path, sub_relative_path
                     )
+
+                    # If no variables found, try alternate form (add/strip .template)
+                    if not sub_vars:
+                        alternate_name = name_without_ext if sub_relative_path == name_with_ext else name_with_ext
+                        try:
+                            alternate_vars = self.save_manager.load_variables_for_template(
+                                self.save_path, alternate_name
+                            )
+                            if alternate_vars:
+                                sub_vars = alternate_vars
+                        except Exception:
+                            pass  # Already have empty sub_vars, will fall back to parent context
             except Exception:
                 pass  # Graceful fallback to parent context + defaults
-        
+
         # Merge: parent context + subtemplate overrides
         merged_context = {**context, **sub_vars}
-        
+
         # Render with merged context
         return self.template.render(merged_context)
     
@@ -266,37 +288,85 @@ class AutoContextEnvironment(jinja2.Environment):
 
 class CustomTemplateLoader(BaseLoader):
     """Custom loader for template inclusion with save file context."""
-    
+
     def __init__(self, templates_dir: str, parser: TemplateParser, save_manager: SaveFileManager):
         self.templates_dir = Path(templates_dir)
         self.parser = parser
         self.save_manager = save_manager
         self._cache = {}
         self._include_stack = threading.local()
-    
+
+    def _resolve_template_path(self, template_path: str) -> Path:
+        """
+        Resolve template path with automatic .template extension handling.
+
+        Tries the path as-is first, then with .template extension if not found.
+        Returns the resolved Path object.
+
+        Raises:
+            jinja2.TemplateNotFound: If template cannot be found with or without extension
+        """
+        # Try the path as provided first
+        full_path = (self.templates_dir / template_path).resolve()
+
+        # Security check: ensure path is within templates_dir
+        if not full_path.is_relative_to(self.templates_dir):
+            raise jinja2.TemplateNotFound(f"Template outside templates dir: {template_path}")
+
+        # If the path exists as-is, return it
+        if full_path.exists():
+            return full_path
+
+        # If the path doesn't already end with .template, try adding it
+        if not template_path.endswith('.template'):
+            full_path_with_ext = (self.templates_dir / f"{template_path}.template").resolve()
+
+            # Security check for the extended path
+            if not full_path_with_ext.is_relative_to(self.templates_dir):
+                raise jinja2.TemplateNotFound(f"Template outside templates dir: {template_path}")
+
+            if full_path_with_ext.exists():
+                return full_path_with_ext
+
+        # Neither path exists, raise error with both attempts
+        if template_path.endswith('.template'):
+            raise jinja2.TemplateNotFound(f"Template not found: '{template_path}'")
+        else:
+            raise jinja2.TemplateNotFound(
+                f"Template not found: '{template_path}' (tried: {template_path}, {template_path}.template)"
+            )
+
     def get_source(self, environment, template_path):
         """Load template source with circular detection and save context."""
         if not hasattr(self._include_stack, 'stack'):
             self._include_stack.stack = []
-        
-        if template_path in self._include_stack.stack:
-            raise jinja2.TemplateNotFound(f"Circular template inclusion: {template_path}")
-        
-        self._include_stack.stack.append(template_path)
-        
+
         try:
-            full_path = (self.templates_dir / template_path).resolve()
-            if not full_path.is_relative_to(self.templates_dir):
-                raise jinja2.TemplateNotFound(f"Template outside templates dir: {template_path}")
-            
+            # Resolve template path early to detect circular inclusion by identity
+            # rather than raw string name (prevents bypass via extensionless variants)
+            full_path = self._resolve_template_path(template_path)
+        except jinja2.TemplateNotFound:
+            # Preserve user-facing error message with original template_path
+            raise
+
+        # Check circular inclusion using resolved path identity
+        full_path_str = full_path.as_posix()
+        if full_path_str in self._include_stack.stack:
+            # Use original template_path in error message for clarity
+            raise jinja2.TemplateNotFound(f"Circular template inclusion: {template_path}")
+
+        self._include_stack.stack.append(full_path_str)
+
+        try:
+            # Check cache using the resolved full path as key
             if full_path in self._cache:
                 return self._cache[full_path], full_path.as_posix(), lambda: True
-            
+
             source = full_path.read_text(encoding='utf-8')
             self._cache[full_path] = source
-            
+
             return source, full_path.as_posix(), lambda: True
-            
+
         finally:
             self._include_stack.stack.pop()
 
@@ -584,14 +654,14 @@ class TemplateRenderer:
     def _extract_error_context(self, content: str, line_number: int, context_lines: int = 2) -> str:
         """Extract error context with surrounding lines and visual marker."""
         lines = content.splitlines()
-        
+
         # Validate line number
         if line_number < 1 or line_number > len(lines):
             return f'Line {line_number} beyond content (total: {len(lines)} lines)'
-        
+
         start = max(0, line_number - context_lines - 1)
         end = min(len(lines), line_number + context_lines)
-        
+
         context = []
         for i, line in enumerate(lines[start:end], start + 1):
             context.append(f"{i:3d}: {line}")
@@ -599,8 +669,24 @@ class TemplateRenderer:
                 # Add marker pointing to the error line
                 marker = ' ' * 5 + '^' * len(line.rstrip())
                 context.append(marker)
-        
+
         return '\n'.join(context)
+
+    def clear_caches(self) -> None:
+        """
+        Clear all renderer caches including environment cache and loader caches.
+
+        This method clears the environment cache and any CustomTemplateLoader
+        caches attached to cached environments, ensuring that template changes
+        are picked up on reload.
+        """
+        # Clear loader caches for all cached environments
+        for env in self._env_cache.values():
+            if hasattr(env, 'loader') and isinstance(env.loader, CustomTemplateLoader):
+                env.loader._cache.clear()
+
+        # Clear environment cache
+        self._env_cache.clear()
 
 
 # ============================================================================

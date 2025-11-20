@@ -9,7 +9,7 @@ VARS:
 
 ### TEMPLATE ###
 
-{% include 'subtemplate_example.template' %}
+{% include 'subtemplate_example' %}
 
 [bold]Main Content[/bold]
 {{ '=' * 50 }}

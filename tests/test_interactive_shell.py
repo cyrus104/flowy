@@ -295,6 +295,76 @@ VARS:
         self.assertIn('client', texts)
         self.assertIn('project', texts)
 
+    def test_variable_option_completion_for_set_command(self):
+        """Test tab completion for variable options in set command."""
+        # Create mock template definition with a variable that has options
+        from template_parser import VariableDefinition
+        mock_template_def = Mock()
+        mock_var = VariableDefinition(
+            name='report_type',
+            description='Report type',
+            default='daily',
+            options=['daily', 'weekly', 'monthly', 'quarterly']
+        )
+        mock_template_def.variables = {'report_type': mock_var, 'client_name': VariableDefinition(
+            name='client_name',
+            description='Client name',
+            default='',
+            options=[]
+        )}
+
+        completer = ShellCompleter(template_def=mock_template_def)
+
+        # Test 'set report_type ' with trailing space shows all options
+        class MockDocSetSpace:
+            text_before_cursor = 'set report_type '
+            current_line_before_cursor = 'set report_type '
+
+        completions = list(completer.get_completions(MockDocSetSpace(), None))
+        texts = [c.text for c in completions]
+        self.assertIn('daily', texts)
+        self.assertIn('weekly', texts)
+        self.assertIn('monthly', texts)
+        self.assertIn('quarterly', texts)
+
+        # Test 'set report_type w' shows only matching options
+        class MockDocSetPartial:
+            text_before_cursor = 'set report_type w'
+            current_line_before_cursor = 'set report_type w'
+
+        completions = list(completer.get_completions(MockDocSetPartial(), None))
+        texts = [c.text for c in completions]
+        self.assertIn('weekly', texts)
+        self.assertNotIn('daily', texts)
+        self.assertNotIn('monthly', texts)
+        self.assertNotIn('quarterly', texts)
+
+    def test_variable_option_completion_no_options(self):
+        """Test that variables without options don't show completions."""
+        # Create mock template definition with a variable that has no options
+        from template_parser import VariableDefinition
+        mock_template_def = Mock()
+        mock_var = VariableDefinition(
+            name='client_name',
+            description='Client name',
+            default='',
+            options=[]
+        )
+        mock_template_def.variables = {'client_name': mock_var}
+
+        completer = ShellCompleter(template_def=mock_template_def)
+
+        # Test 'set client_name ' should show no completions
+        class MockDocSetNoOptions:
+            text_before_cursor = 'set client_name '
+            current_line_before_cursor = 'set client_name '
+
+        completions = list(completer.get_completions(MockDocSetNoOptions(), None))
+        texts = [c.text for c in completions]
+        # Should be empty since there are no options defined
+        self.assertEqual(len(texts), 0)
+
+
 # Insert after the existing test_template_completion_context method or before TestInteractiveShell class
 class TestInteractiveShell(unittest.TestCase):
     """Test interactive shell command handlers."""
@@ -425,6 +495,52 @@ Title: {{ title }}
 
         mock_state.revert.assert_called_once()
         mock_parser.parse.assert_called_once_with('previous.template')
+
+    @patch('interactive_shell._get_template_files')
+    @patch('interactive_shell._get_save_files')
+    def test_cmd_reload(self, mock_get_saves, mock_get_templates):
+        """Test reload command clears caches and refreshes file lists."""
+        from template_renderer import CustomTemplateLoader
+
+        # Setup mocks
+        mock_get_templates.return_value = ['new_template']
+        mock_get_saves.return_value = ['new_save']
+
+        shell = InteractiveShell()
+
+        # Create a real CustomTemplateLoader instance with a cache
+        from template_parser import TemplateParser
+        from save_file_manager import SaveFileManager
+        import tempfile
+        temp_dir = tempfile.mkdtemp()
+
+        loader = CustomTemplateLoader(temp_dir, TemplateParser(temp_dir), SaveFileManager(temp_dir))
+        loader._cache = {'cached_template': 'cached_content'}
+
+        # Create mock environment with real loader
+        mock_env = Mock()
+        mock_env.loader = loader
+
+        # Add dummy entries to caches
+        shell.renderer._env_cache = {('test', None): mock_env}
+        shell.completer._templates = ['old_template']
+        shell.completer._saves = ['old_save']
+
+        with patch.object(shell, '_display_success') as mock_success:
+            shell.cmd_reload([])
+
+            # Verify environment cache was cleared
+            assert len(shell.renderer._env_cache) == 0
+            # Verify loader cache was cleared
+            assert len(loader._cache) == 0
+            # Verify completer lists were refreshed
+            assert shell.completer._templates == ['new_template']
+            assert shell.completer._saves == ['new_save']
+            mock_success.assert_called_once()
+
+        # Cleanup
+        import shutil
+        shutil.rmtree(temp_dir)
 
     def test_command_aliases(self):
         """Test command alias resolution."""

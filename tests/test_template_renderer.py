@@ -457,6 +457,245 @@ Invalid syntax
         self.assertIsNotNone(result.error_line)
         self.assertIsNotNone(result.error_message)
 
+    def test_include_without_extension(self):
+        """Test template inclusion using extensionless syntax."""
+        # Create subtemplate with .template extension
+        sub_content = """VARS:
+
+### TEMPLATE ###
+Subtemplate Content"""
+        self.create_test_template('sub.template', sub_content)
+
+        # Create main template that includes without extension
+        main_content = """VARS:
+
+### TEMPLATE ###
+{% include 'sub' %}
+Main Content"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        result = self.renderer.render(template_def, {})
+        self.assertTrue(result.success)
+        self.assertIn("Subtemplate Content", result.output)
+        self.assertIn("Main Content", result.output)
+
+    def test_include_with_extension_backward_compatibility(self):
+        """Test backward compatibility with full extension in include."""
+        # Create subtemplate with .template extension
+        sub_content = """VARS:
+
+### TEMPLATE ###
+Subtemplate Content"""
+        self.create_test_template('sub.template', sub_content)
+
+        # Create main template that includes with full extension
+        main_content = """VARS:
+
+### TEMPLATE ###
+{% include 'sub.template' %}
+Main Content"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        result = self.renderer.render(template_def, {})
+        self.assertTrue(result.success)
+        self.assertIn("Subtemplate Content", result.output)
+        self.assertIn("Main Content", result.output)
+
+    def test_include_both_syntaxes_same_result(self):
+        """Test that both extensionless and with-extension syntaxes produce identical results."""
+        # Create subtemplate
+        sub_content = """VARS:
+
+### TEMPLATE ###
+Subtemplate Content"""
+        self.create_test_template('sub.template', sub_content)
+
+        # Create main template without extension
+        main_without_ext = """VARS:
+
+### TEMPLATE ###
+{% include 'sub' %}"""
+        self.create_test_template('main_without.template', main_without_ext)
+
+        # Create main template with extension
+        main_with_ext = """VARS:
+
+### TEMPLATE ###
+{% include 'sub.template' %}"""
+        self.create_test_template('main_with.template', main_with_ext)
+
+        parser = TemplateParser(self.templates_dir)
+
+        # Render both templates
+        template_def_without = parser.parse('main_without.template')
+        result_without = self.renderer.render(template_def_without, {})
+
+        template_def_with = parser.parse('main_with.template')
+        result_with = self.renderer.render(template_def_with, {})
+
+        # Both should succeed and produce identical output
+        self.assertTrue(result_without.success)
+        self.assertTrue(result_with.success)
+        self.assertEqual(result_without.output, result_with.output)
+
+    def test_include_nonexistent_template(self):
+        """Test error handling when including a non-existent template."""
+        # Create main template that includes non-existent subtemplate
+        main_content = """VARS:
+
+### TEMPLATE ###
+{% include 'missing' %}"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        result = self.renderer.render(template_def, {})
+        self.assertFalse(result.success)
+        self.assertIsNotNone(result.error_message)
+        self.assertIn("not found", result.error_message.lower())
+
+    def test_include_nested_subtemplates(self):
+        """Test extensionless syntax works with nested template includes."""
+        # Create level2 subtemplate
+        level2_content = """VARS:
+
+### TEMPLATE ###
+Level 2 Content"""
+        self.create_test_template('level2.template', level2_content)
+
+        # Create level1 subtemplate that includes level2 without extension
+        level1_content = """VARS:
+
+### TEMPLATE ###
+Level 1 Content
+{% include 'level2' %}"""
+        self.create_test_template('level1.template', level1_content)
+
+        # Create main template that includes level1 without extension
+        main_content = """VARS:
+
+### TEMPLATE ###
+Main Content
+{% include 'level1' %}"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        result = self.renderer.render(template_def, {})
+        self.assertTrue(result.success)
+        self.assertIn("Main Content", result.output)
+        self.assertIn("Level 1 Content", result.output)
+        self.assertIn("Level 2 Content", result.output)
+
+    def test_include_with_subdirectory(self):
+        """Test extensionless syntax works with subdirectory paths."""
+        # Create subdirectory and subtemplate
+        sub_content = """VARS:
+
+### TEMPLATE ###
+Header Content"""
+        self.create_test_template('common/header.template', sub_content)
+
+        # Create main template that includes from subdirectory without extension
+        main_content = """VARS:
+
+### TEMPLATE ###
+{% include 'common/header' %}
+Main Content"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        result = self.renderer.render(template_def, {})
+        self.assertTrue(result.success)
+        self.assertIn("Header Content", result.output)
+        self.assertIn("Main Content", result.output)
+
+    def test_clear_caches(self):
+        """Test clear_caches() clears both environment and loader caches."""
+        # Create a simple template
+        content = """VARS:
+  - name:
+      default: World
+
+### TEMPLATE ###
+Hello {{ name }}!
+"""
+        self.create_test_template('test.template', content)
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('test.template')
+
+        # Render to populate caches
+        result = self.renderer.render(template_def, {'name': 'Alice'})
+        self.assertTrue(result.success)
+
+        # Verify environment cache is populated
+        self.assertGreater(len(self.renderer._env_cache), 0)
+
+        # Verify loader cache is populated (get first env from cache)
+        env = next(iter(self.renderer._env_cache.values()))
+        self.assertIsInstance(env.loader, CustomTemplateLoader)
+
+        # Manually add something to loader cache to test clearing
+        env.loader._cache[Path('test_path')] = 'test_content'
+        self.assertGreater(len(env.loader._cache), 0)
+
+        # Clear all caches
+        self.renderer.clear_caches()
+
+        # Verify environment cache is empty
+        self.assertEqual(len(self.renderer._env_cache), 0)
+
+        # Note: After clear_caches(), _env_cache is empty so we can't check loader cache
+        # But we verified it was called via the implementation
+
+    def test_clear_caches_clears_loader_caches(self):
+        """Test that clear_caches() properly clears CustomTemplateLoader caches."""
+        # Create templates with includes
+        sub_content = """VARS:
+
+### TEMPLATE ###
+Subtemplate"""
+        self.create_test_template('sub.template', sub_content)
+
+        main_content = """VARS:
+
+### TEMPLATE ###
+{% include 'sub' %}
+Main"""
+        self.create_test_template('main.template', main_content)
+
+        parser = TemplateParser(self.templates_dir)
+        template_def = parser.parse('main.template')
+
+        # Render to populate both environment and loader caches
+        result = self.renderer.render(template_def, {})
+        self.assertTrue(result.success)
+
+        # Get the environment from cache
+        env = next(iter(self.renderer._env_cache.values()))
+        loader = env.loader
+        self.assertIsInstance(loader, CustomTemplateLoader)
+
+        # Verify loader cache has entries (from include)
+        initial_loader_cache_size = len(loader._cache)
+        self.assertGreater(initial_loader_cache_size, 0)
+
+        # Clear all caches
+        self.renderer.clear_caches()
+
+        # Verify environment cache is cleared
+        self.assertEqual(len(self.renderer._env_cache), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

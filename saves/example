@@ -1,12 +1,12 @@
 # Example Save File for Template Assistant
-# 
+#
 # Save files use INI format with section hierarchy:
 # [general] - applies to ALL templates (unless overridden)
-# [template/path.template] - template-specific variables
+# [template/path] - template-specific variables (extensionless format)
 # Template-specific sections OVERRIDE [general] values
 #
 # Subdirectories supported: saves/projects/client.save
-# Subtemplates auto-load context: [common/header.template]
+# Subtemplates auto-load context: [common/header]
 
 # =============================================================================
 # GENERAL SECTION - Applies to all templates
@@ -73,13 +73,13 @@ content = This document provides a comprehensive overview of the quarterly perfo
 # USAGE EXAMPLES
 # =============================================================================
 # To use these variables:
-# 
+#
 # 1. Interactive shell: `load example.save`
 # 2. For specific template: `use example.template` then `load example.save`
 # 3. Subtemplates automatically get their section context
 #
 # Variable hierarchy (template wins):
-# [general.company_name] → [example.template.client_name] ✓ Acme Corporation
+# [general.company_name] → [example.client_name] ✓ Acme Corporation
 #
 # Type coercion examples:
 # debug_mode = false → boolean False

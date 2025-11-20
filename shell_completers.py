@@ -154,6 +154,24 @@ class ShellCompleter(Completer):
                 for var in vars:
                     if var.startswith(word):
                         yield Completion(var, start_position=-len(word))
+            # Second arg for set: variable option completion
+            elif command == 'set' and len(args) >= 1:
+                # Two cases for completing option values:
+                # 1. User has typed space after variable name (e.g., "set var_name ")
+                has_space_after_var_name = len(args) == 1 and text_before_cursor.endswith(' ')
+                # 2. User is typing the option value (e.g., "set var_name opt")
+                is_typing_option_value = len(args) == 2
+
+                if has_space_after_var_name or is_typing_option_value:
+                    # Get the variable name from the first argument
+                    var_name = args[0]
+                    # Get options for this variable
+                    options = _get_variable_options(self.template_def, var_name)
+                    # Yield completions for matching options
+                    for option in options:
+                        option_str = str(option)
+                        if option_str.startswith(word):
+                            yield Completion(option_str, start_position=-len(word))
         
         elif command == 'help' or command in COMMAND_ALIASES.get('help', []):
             # First arg: command name completion (works for help, h, and ?)

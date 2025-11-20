@@ -1,15 +1,15 @@
 """
-Configuration Module for Template Assistant
+Configuration Module for Flowy
 
-This module centralizes all configuration settings for the Template Assistant application.
+This module centralizes all configuration settings for the Flowy application.
 It provides centralized access to paths, display settings, interface customization, and
 behavioral options. All settings support environment variable overrides for flexible deployment.
 
 Usage:
     from configuration import TEMPLATES_DIR, COMMAND_ALIASES, BANNER_ASCII
-    
+
     # Customize behavior via environment variables
-    export TEMPLATE_ASSISTANT_TEMPLATES=/custom/path
+    export FLOWY_TEMPLATES=/custom/path
 """
 
 import os
@@ -19,7 +19,7 @@ import os
 # ============================================================================
 
 VERSION = "1.0.0"
-APP_NAME = "Template Assistant"
+APP_NAME = "Flowy"
 
 
 # ============================================================================
@@ -27,13 +27,13 @@ APP_NAME = "Template Assistant"
 # ============================================================================
 # Each location supports environment variable override for flexible deployment
 
-TEMPLATES_DIR = os.getenv('TEMPLATE_ASSISTANT_TEMPLATES', './templates')
+TEMPLATES_DIR = os.getenv('FLOWY_TEMPLATES', os.getenv('TEMPLATE_ASSISTANT_TEMPLATES', './templates'))
 """Path to directory containing template files (.template extension)"""
 
-SAVES_DIR = os.getenv('TEMPLATE_ASSISTANT_SAVES', './saves')
+SAVES_DIR = os.getenv('FLOWY_SAVES', os.getenv('TEMPLATE_ASSISTANT_SAVES', './saves'))
 """Path to directory containing save files (no extension required)"""
 
-MODULES_DIR = os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules')
+MODULES_DIR = os.getenv('FLOWY_MODULES', os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules'))
 """Path to directory containing Python module files for template functions"""
 
 
@@ -41,13 +41,13 @@ MODULES_DIR = os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules')
 # State Management
 # ============================================================================
 
-STATE_FILE = os.getenv('TEMPLATE_ASSISTANT_STATE', './.state')
+STATE_FILE = os.getenv('FLOWY_STATE', os.getenv('TEMPLATE_ASSISTANT_STATE', './.state'))
 """Path to state file for session persistence and crash recovery (JSON format)"""
 
-STATE_BACKUP_FILE = os.getenv('TEMPLATE_ASSISTANT_STATE_BACKUP', './.state.backup')
+STATE_BACKUP_FILE = os.getenv('FLOWY_STATE_BACKUP', os.getenv('TEMPLATE_ASSISTANT_STATE_BACKUP', './.state.backup'))
 """Path to backup state file storing state from before last program start for restore command"""
 
-HISTORY_FILE = os.getenv('TEMPLATE_ASSISTANT_HISTORY', './.history')
+HISTORY_FILE = os.getenv('FLOWY_HISTORY', os.getenv('TEMPLATE_ASSISTANT_HISTORY', './.history'))
 """Path to history file for command audit trail (plain text format)"""
 
 
@@ -55,24 +55,33 @@ HISTORY_FILE = os.getenv('TEMPLATE_ASSISTANT_HISTORY', './.history')
 # Interface Customization
 # ============================================================================
 
-PROMPT_TEMPLATE = "template-assistant{template} > "
+PROMPT_TEMPLATE = "flowy{template} > "
 """
 Prompt template for interactive shell.
 {template} will be replaced with:
   - Current template path if one is loaded
   - Empty string if no template is loaded
 Examples:
-  template-assistant > 
-  template-assistant (reports/monthly.template) > 
+  flowy >
+  flowy (reports/monthly.template) >
 """
 
 BANNER_ASCII = r"""
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                       TEMPLATE ASSISTANT v{version}                        ║
-║                                                                           ║
-║       Interactive Jinja2 Template Rendering with Python Integration      ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-""".format(version=VERSION)
+    ══════════════════════════════════════════════════════════════════
+                                                                      
+         ███████╗██╗      ██████╗ ██╗    ██╗██╗   ██╗                
+         ██╔════╝██║     ██╔═══██╗██║    ██║╚██╗ ██╔╝                
+         █████╗  ██║     ██║   ██║██║ █╗ ██║ ╚████╔╝                 
+         ██╔══╝  ██║     ██║   ██║██║███╗██║  ╚██╔╝                  
+         ██║     ███████╗╚██████╔╝╚███╔███╔╝   ██║                   
+         ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝    ╚═╝                   
+                                                                      
+                    Version {version}                          
+                                                                      
+         Templating the world one render at a time.           
+                                                                       
+    ══════════════════════════════════════════════════════════════════
+"""
 """ASCII art banner displayed on startup"""
 
 

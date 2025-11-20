@@ -1,10 +1,10 @@
 # Installation Guide
 
-This guide provides comprehensive installation instructions for the template-assistant CLI application.
+This guide provides comprehensive installation instructions for the flowy CLI application.
 
 ## Prerequisites
 
-Before installing template-assistant, ensure you have:
+Before installing flowy, ensure you have:
 
 - **Python 3.8 or higher** - Check your version with:
   ```bash
@@ -26,11 +26,11 @@ Before installing template-assistant, ensure you have:
 
 For users who have downloaded a pre-built wheel file:
 
-1. Download the wheel file (e.g., `template_assistant-<version>-py3-none-any.whl`)
+1. Download the wheel file (e.g., `flowy-<version>-py3-none-any.whl`)
 
 2. Install using pip:
    ```bash
-   pip install template_assistant-<version>-py3-none-any.whl
+   pip install flowy-<version>-py3-none-any.whl
    ```
 
    Or install any wheel file from the `dist/` directory:
@@ -40,7 +40,7 @@ For users who have downloaded a pre-built wheel file:
 
 3. Verify installation:
    ```bash
-   template-assistant --help
+   flowy --help
    ```
 
 4. **Note**: Replace `<version>` with the actual version number of your downloaded wheel file, or use the glob pattern `dist/*.whl` to install the latest built wheel.
@@ -51,10 +51,10 @@ Once published to PyPI, users will be able to install with:
 
 ```bash
 # Install the latest version
-pip install template-assistant
+pip install flowy
 
 # Upgrade to the latest version
-pip install --upgrade template-assistant
+pip install --upgrade flowy
 ```
 
 **Note**: This method is not yet available as the package hasn't been published to PyPI.
@@ -67,7 +67,7 @@ For developers who want to modify the code and have changes take effect immediat
 
 2. Navigate to the project directory:
    ```bash
-   cd /path/to/template-assistant
+   cd /path/to/flowy
    ```
 
 3. Install in editable mode:
@@ -79,7 +79,7 @@ For developers who want to modify the code and have changes take effect immediat
 
 5. Verify installation:
    ```bash
-   template-assistant --help
+   flowy --help
    ```
 
 ### 4. Install from Source
@@ -90,7 +90,7 @@ For users who want to build from source:
 
 2. Navigate to the project directory:
    ```bash
-   cd /path/to/template-assistant
+   cd /path/to/flowy
    ```
 
 3. Install build dependencies:
@@ -109,7 +109,7 @@ For users who want to build from source:
 
 5. Install the generated wheel:
    ```bash
-   pip install dist/template_assistant-<version>-py3-none-any.whl
+   pip install dist/flowy-<version>-py3-none-any.whl
    ```
 
    Or install using a glob pattern:
@@ -131,8 +131,8 @@ source venv/bin/activate
 # Activate (Windows)
 venv\Scripts\activate
 
-# Install template-assistant (replace <version> with actual version)
-pip install template_assistant-<version>-py3-none-any.whl
+# Install flowy (replace <version> with actual version)
+pip install flowy-<version>-py3-none-any.whl
 # Or use glob pattern
 pip install dist/*.whl
 
@@ -142,14 +142,14 @@ deactivate
 
 ## Basic Usage
 
-After installation, the `template-assistant` command is available system-wide (or within your virtual environment).
+After installation, the `flowy` command is available system-wide (or within your virtual environment).
 
 ### Interactive Mode
 
 Launch the interactive shell with tab completion and command history:
 
 ```bash
-template-assistant
+flowy
 ```
 
 ### Quick Launch Mode
@@ -158,10 +158,10 @@ Load templates and save files directly from the command line:
 
 ```bash
 # Load template only
-template-assistant --template example.template
+flowy --template example.template
 
 # Load template and save file, auto-render
-template-assistant --template example.template --save example
+flowy --template example.template --save example
 ```
 
 ### Common Commands
@@ -181,28 +181,28 @@ Check that the installation was successful:
 
 ```bash
 # Check command availability
-template-assistant --help
+flowy --help
 
 # Check version programmatically
 python -c "import configuration; print(configuration.VERSION)"
 
 # Run a quick test
-template-assistant --template templates/example.template
+flowy --template templates/example.template
 ```
 
 ## Uninstallation
 
-To remove template-assistant from your system:
+To remove flowy from your system:
 
 ```bash
-pip uninstall template-assistant
+pip uninstall flowy
 ```
 
 ## Troubleshooting
 
 ### Command Not Found
 
-If the `template-assistant` command is not found after installation:
+If the `flowy` command is not found after installation:
 
 - Ensure pip's script directory is in your PATH
   - **Linux/macOS**: Add `~/.local/bin` to PATH
@@ -221,7 +221,7 @@ If you encounter permission errors during installation:
 
 - Use the `--user` flag to install for the current user only:
   ```bash
-  pip install --user template_assistant-<version>-py3-none-any.whl
+  pip install --user flowy-<version>-py3-none-any.whl
   # Or use glob pattern
   pip install --user dist/*.whl
   ```
@@ -248,7 +248,7 @@ If you experience issues with dependencies:
 
 ### Import Errors
 
-If you encounter import errors when running template-assistant:
+If you encounter import errors when running flowy:
 
 - Verify all dependencies are correctly installed:
   ```bash
@@ -257,8 +257,8 @@ If you encounter import errors when running template-assistant:
 
 - Try reinstalling the package:
   ```bash
-  pip uninstall template-assistant
-  pip install template_assistant-<version>-py3-none-any.whl
+  pip uninstall flowy
+  pip install flowy-<version>-py3-none-any.whl
   # Or use glob pattern
   pip install dist/*.whl
   ```
@@ -281,11 +281,11 @@ For detailed usage instructions, features, and examples, see the comprehensive d
 
 ## Dependencies
 
-template-assistant requires the following packages (automatically installed):
+flowy requires the following packages (automatically installed):
 
 - **Jinja2** - Template rendering engine
 - **prompt_toolkit** - Interactive shell with autocomplete
 - **PyYAML** - Save file parsing
 - **colorama** - Cross-platform colored terminal output
 
-These dependencies are specified in `pyproject.toml` and will be installed automatically when you install template-assistant.
+These dependencies are specified in `pyproject.toml` and will be installed automatically when you install flowy.

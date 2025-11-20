@@ -8,13 +8,15 @@ Format example:
 [general]
 company_name = Example Corp
 
-[reports/monthly.template]
+[reports/monthly]
 client_name = Acme Corp  # Overrides general for this template
 
-Subtemplates automatically load their context: [common/header.template]
+Subtemplates automatically load their context: [common/header]
 
+Template-specific sections use extensionless format (e.g., [example] not [example.template]).
 Template-specific sections override [general]. Supports subdirectories and flexible file naming
 with any extension. Files can be organized in subdirectories with any naming convention.
+Backward compatible with old format that included .template extension.
 """
 
 import os
@@ -50,6 +52,24 @@ class SaveFileFormatError(SaveFileError):
 
 class SaveFileSaveError(SaveFileError):
     """Raised when save file cannot be written."""
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def _normalize_template_path(template_path: str) -> str:
+    """
+    Normalize template path by stripping .template extension.
+
+    Args:
+        template_path: Template path (e.g., 'example.template' or 'reports/monthly.template')
+    Returns:
+        Normalized path without .template extension (e.g., 'example' or 'reports/monthly')
+    """
+    if template_path.endswith('.template'):
+        return template_path[:-9]  # Remove '.template' (9 characters)
+    return template_path
 
 
 # ============================================================================
@@ -108,14 +128,27 @@ class SaveFileData:
     def get_variables_for_template(self, template_path: str) -> Dict[str, Any]:
         """
         Get merged variables for template: general + template-specific (template overrides).
-        
+
+        Section names use extensionless format (e.g., [example] not [example.template]).
+        Backward compatible with old format that included .template extension.
+
         Args:
-            template_path: Template path (e.g., 'reports/monthly.template')
+            template_path: Template path (e.g., 'reports/monthly.template' or 'reports/monthly')
         Returns:
             Merged variables dict
         """
+        # Normalize the template path by stripping .template extension
+        normalized_path = _normalize_template_path(template_path)
+
         result = self.general_variables.copy()
-        result.update(self.template_sections.get(template_path, {}))
+
+        # Try normalized path first (new format)
+        if normalized_path in self.template_sections:
+            result.update(self.template_sections[normalized_path])
+        # Fallback to original path for backward compatibility (old format)
+        elif template_path in self.template_sections:
+            result.update(self.template_sections[template_path])
+
         return result
     
     @staticmethod
@@ -166,8 +199,10 @@ class SaveFileManager:
     """
     Manages INI-format save files with section hierarchy support.
 
-    Sections: [general] + template-specific (e.g., [reports/monthly.template])
+    Sections: [general] + template-specific (e.g., [reports/monthly])
+    Section names use extensionless format (e.g., [example] not [example.template]).
     Template sections override [general]. Supports subdirectories and any file extension.
+    Backward compatible with old format that included .template extension.
     """
     
     def __init__(self, saves_dir: str = None):
@@ -224,21 +259,24 @@ class SaveFileManager:
         """
         Save variables to save file (general or template-specific section).
 
+        Section names use extensionless format (e.g., [example] not [example.template]).
+
         Args:
             save_path: Save file path (e.g., 'client_a' or 'projects/client')
             variables: Variables to save
-            template_path: Template section name or None for [general]
+            template_path: Template section name (e.g., 'example.template') or None for [general]
         """
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
-        
+
         # Load existing or create new
         try:
             save_data = self.load(save_path)
         except SaveFileNotFoundError:
             save_data = SaveFileData(full_path)
-        
-        section_name = template_path or 'general'
-        
+
+        # Normalize template_path by stripping .template extension for section name
+        section_name = _normalize_template_path(template_path) if template_path else 'general'
+
         if template_path:
             # Create new immutable instance with updated template section
             # Merge existing template section variables with new ones
@@ -262,16 +300,18 @@ class SaveFileManager:
                 merged_general,
                 save_data.template_sections
             )
-        
+
         self.save(save_path, new_save_data)
     
     def load_variables_for_template(self, save_path: str, template_path: str) -> Dict[str, Any]:
         """
         Load merged variables for specific template from save file.
-        
+
+        Normalization and backward compatibility handled by SaveFileData.get_variables_for_template().
+
         Args:
             save_path: Save file path
-            template_path: Template path (e.g., 'reports/monthly.template')
+            template_path: Template path (e.g., 'reports/monthly.template' or 'reports/monthly')
         Returns:
             Merged dict: general + template-specific (template overrides)
         """

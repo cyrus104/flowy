@@ -33,13 +33,13 @@ class TestSaveFileData(unittest.TestCase):
         import configparser
         config = configparser.ConfigParser(allow_no_value=True)
         config['general'] = {'company': 'Test Corp', 'debug': 'true'}
-        config['example.template'] = {'client': 'Acme', 'debug': 'false'}
+        config['example'] = {'client': 'Acme', 'debug': 'false'}
 
         data = SaveFileData.from_configparser(config, '/test')
-        
+
         self.assertEqual(data.path, '/test')
         self.assertEqual(data.general_variables, {'company': 'Test Corp', 'debug': True})
-        self.assertEqual(data.template_sections['example.template'], 
+        self.assertEqual(data.template_sections['example'],
                         {'client': 'Acme', 'debug': False})
     
     def test_to_configparser_serialization(self):
@@ -47,12 +47,12 @@ class TestSaveFileData(unittest.TestCase):
         data = SaveFileData(
             '/test',
             general_variables={'company': 'Test Corp'},
-            template_sections={'test.template': {'client': 'Acme'}}
+            template_sections={'test': {'client': 'Acme'}}
         )
-        
+
         config = data.to_configparser()
         self.assertIn('general', config.sections())
-        self.assertIn('test.template', config.sections())
+        self.assertIn('test', config.sections())
         self.assertEqual(dict(config['general']), {'company': 'Test Corp'})
     
     def test_get_variables_for_template_general_only(self):
@@ -63,17 +63,17 @@ class TestSaveFileData(unittest.TestCase):
         self.assertEqual(result, {'company': 'Test Corp'})
     
     def test_get_variables_for_template_specific_only(self):
-        """Test template with only specific variables."""
+        """Test template with only specific variables and normalization."""
         data = SaveFileData('/test',
-                           template_sections={'test.template': {'client': 'Acme'}})
+                           template_sections={'test': {'client': 'Acme'}})
         result = data.get_variables_for_template('test.template')
         self.assertEqual(result, {'client': 'Acme'})
     
     def test_get_variables_for_template_override(self):
-        """Test template-specific overrides general."""
+        """Test template-specific overrides general with normalization."""
         data = SaveFileData('/test',
                            general_variables={'debug': True},
-                           template_sections={'test.template': {'debug': False}})
+                           template_sections={'test': {'debug': False}})
         result = data.get_variables_for_template('test.template')
         self.assertEqual(result['debug'], False)  # Template overrides general
     
@@ -261,7 +261,7 @@ class TestSaveFileManager(unittest.TestCase):
 company = Test Corp
 debug = true
 
-[test.template]
+[test]
 client = Acme
 debug = false
 """
@@ -272,7 +272,7 @@ debug = false
         data = manager.load('test')
 
         self.assertEqual(data.general_variables['company'], 'Test Corp')
-        self.assertEqual(data.template_sections['test.template']['client'], 'Acme')
+        self.assertEqual(data.template_sections['test']['client'], 'Acme')
     
     def test_load_missing_file(self):
         """Test missing file raises SaveFileNotFoundError."""
@@ -318,12 +318,12 @@ debug = false
         self.assertEqual(data.general_variables['company'], 'Acme')
     
     def test_save_variables_template_specific(self):
-        """Test saving to template-specific section."""
+        """Test saving to template-specific section uses normalized name."""
         manager = self._create_test_manager()
         manager.save_variables('test', {'client': 'Acme'}, 'test.template')
 
         data = manager.load('test')
-        self.assertEqual(data.template_sections['test.template']['client'], 'Acme')
+        self.assertEqual(data.template_sections['test']['client'], 'Acme')
     
     def test_save_variables_merge_existing(self):
         """Test saving merges with existing file."""
@@ -339,13 +339,13 @@ debug = false
         self.assertEqual(data.general_variables, {'first': 'value1', 'second': 'value2'})
     
     def test_load_variables_for_template(self):
-        """Test loading merged variables for template."""
+        """Test loading merged variables for template with normalization."""
         test_path = os.path.join(self.saves_dir, 'test')
         content = """[general]
 debug = true
 company = General Corp
 
-[test.template]
+[test]
 client = Acme Corp
 debug = false
 """
@@ -360,14 +360,14 @@ debug = false
         self.assertEqual(result['debug'], False)            # Template overrides general
     
     def test_get_template_sections(self):
-        """Test getting list of template sections."""
+        """Test getting list of template sections returns normalized names."""
         manager = self._create_test_manager()
         manager.save_variables('sections', {}, 'reports/daily.template')
         manager.save_variables('sections', {}, 'common/header.template')
 
         sections = manager.get_template_sections('sections')
-        self.assertIn('reports/daily.template', sections)
-        self.assertIn('common/header.template', sections)
+        self.assertIn('reports/daily', sections)
+        self.assertIn('common/header', sections)
     
     def test_convenience_functions(self):
         """Test module-level convenience functions (extensionless format)."""
@@ -477,6 +477,43 @@ company = Legacy Corp
             # Load with exact path and verify content
             data = manager.load(filepath)
             self.assertEqual(data.general_variables, variables)
+
+    def test_backward_compatibility_with_template_extension(self):
+        """Test backward compatibility with old format section names that include .template extension."""
+        test_path = os.path.join(self.saves_dir, 'backward_compat')
+        content = """[general]
+company = Legacy Corp
+
+[test.template]
+client = Old Format Client
+project = Legacy Project
+"""
+        with open(test_path, 'w') as f:
+            f.write(content)
+
+        manager = self._create_test_manager()
+        result = manager.load_variables_for_template('backward_compat', 'test.template')
+
+        # Should load variables from old format section [test.template]
+        self.assertEqual(result['company'], 'Legacy Corp')
+        self.assertEqual(result['client'], 'Old Format Client')
+        self.assertEqual(result['project'], 'Legacy Project')
+
+    def test_normalization_strips_template_extension(self):
+        """Test that normalization correctly strips .template extension for new format."""
+        manager = self._create_test_manager()
+
+        # Save using template path with .template extension
+        manager.save_variables('normalize_test', {'var1': 'value1'}, 'test.template')
+
+        # Load the file and check the section name is normalized (without .template)
+        data = manager.load('normalize_test')
+        self.assertIn('test', data.template_sections)
+        self.assertNotIn('test.template', data.template_sections)
+
+        # Verify we can load variables using the template path with .template extension
+        result = manager.load_variables_for_template('normalize_test', 'test.template')
+        self.assertEqual(result['var1'], 'value1')
 
 
 if __name__ == '__main__':

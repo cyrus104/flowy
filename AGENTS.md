@@ -1,15 +1,15 @@
-# Python Templating Assistant - Design Document
+# Flowy - Design Document
 
 ## Overview
 
-A command-line templating assistant application that provides an interactive, tab-completable interface for rendering Jinja2 templates with Python integration. The application features a Metasploit-inspired interface with state management, variable persistence, and modular Python function support.
+A command-line Flowy application that provides an interactive, tab-completable interface for rendering Jinja2 templates with Python integration. The application features a Metasploit-inspired interface with state management, variable persistence, and modular Python function support.
 
 ## Core Architecture
 
 ### Application Structure
 
 ```
-template-assistant/
+flowy/
 ├── configuration.py          # Configuration and environment settings
 ├── main.py                   # Entry point and CLI interface
 ├── templates/                # Template storage directory
@@ -35,8 +35,8 @@ The application launches into an interactive shell with tab completion support, 
 
 **Prompt Examples:**
 ```
-template-assistant > 
-template-assistant (templates/report.template) >
+flowy >
+flowy (templates/report.template) >
 ```
 
 ### Startup Behavior
@@ -539,16 +539,16 @@ Centralized configuration file for customization and environment settings.
 
 ```python
 # Folder Locations (can use environment variables)
-TEMPLATES_DIR = os.getenv('TEMPLATE_ASSISTANT_TEMPLATES', './templates')
-SAVES_DIR = os.getenv('TEMPLATE_ASSISTANT_SAVES', './saves')
-MODULES_DIR = os.getenv('TEMPLATE_ASSISTANT_MODULES', './modules')
+TEMPLATES_DIR = os.getenv('FLOWY_TEMPLATES', './templates')
+SAVES_DIR = os.getenv('FLOWY_SAVES', './saves')
+MODULES_DIR = os.getenv('FLOWY_MODULES', './modules')
 
 # State Management
-STATE_FILE = os.getenv('TEMPLATE_ASSISTANT_STATE', './.state')
-HISTORY_FILE = os.getenv('TEMPLATE_ASSISTANT_HISTORY', './.history')
+STATE_FILE = os.getenv('FLOWY_STATE', './.state')
+HISTORY_FILE = os.getenv('FLOWY_HISTORY', './.history')
 
 # Interface Customization
-PROMPT_TEMPLATE = "template-assistant{template} > "
+PROMPT_TEMPLATE = "flowy{template} > "
 BANNER_ASCII = """
 [ASCII art here]
 """
@@ -579,8 +579,8 @@ TRUNCATE_INDICATOR = "..."         # Indicator for truncated content
 
 Users can override default locations using environment variables:
 ```bash
-export TEMPLATE_ASSISTANT_TEMPLATES=/path/to/templates
-export TEMPLATE_ASSISTANT_SAVES=/path/to/saves
+export FLOWY_TEMPLATES=/path/to/templates
+export FLOWY_SAVES=/path/to/saves
 ```
 
 ## Tab Completion

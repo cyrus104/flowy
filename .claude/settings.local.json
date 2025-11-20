@@ -9,7 +9,8 @@
       "Bash(python3:*)",
       "Bash(mkdir:*)",
       "Bash(chmod:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

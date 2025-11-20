@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ################################################################################
-# build.sh - Automated Wheel Building Script for template-assistant
+# build.sh - Automated Wheel Building Script for flowy
 #
 # This script automates the process of building a Python wheel package for
-# the template-assistant CLI application. It cleans old build artifacts,
+# the flowy CLI application. It cleans old build artifacts,
 # verifies dependencies, and creates distributable wheel files.
 #
 # Usage: ./build.sh
@@ -18,7 +18,7 @@
 set -e
 
 echo "=========================================="
-echo "  template-assistant Wheel Build Script"
+echo "  Flowy Wheel Build Script"
 echo "=========================================="
 echo ""
 
@@ -57,7 +57,7 @@ echo "Generated files in dist/:"
 ls dist/
 echo ""
 echo "Quick install:"
-echo "  pip install dist/template_assistant-<version>-py3-none-any.whl"
+echo "  pip install dist/flowy-<version>-py3-none-any.whl"
 echo ""
 echo "For detailed installation instructions, see INSTALL.md"
 echo ""

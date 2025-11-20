@@ -1,8 +1,8 @@
-# Template Assistant
+# Flowy
 
 **Interactive Jinja2 Template Rendering with Python Integration**
 
-Template Assistant provides a Metasploit-inspired interactive shell for rendering Jinja2 templates with full Python integration, variable persistence, and crash recovery.
+Flowy provides a Metasploit-inspired interactive shell for rendering Jinja2 templates with full Python integration, variable persistence, and crash recovery.
 
 ## ✨ Features
 
@@ -30,9 +30,20 @@ python main.py
 
 ### 3. Example Session
 ```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║                       TEMPLATE ASSISTANT v1.0.0                        ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════════╗
+    ║                                                                   ║
+    ║     ███████╗██╗      ██████╗ ██╗    ██╗██╗   ██╗                ║
+    ║     ██╔════╝██║     ██╔═══██╗██║    ██║╚██╗ ██╔╝                ║
+    ║     █████╗  ██║     ██║   ██║██║ █╗ ██║ ╚████╔╝                 ║
+    ║     ██╔══╝  ██║     ██║   ██║██║███╗██║  ╚██╔╝                  ║
+    ║     ██║     ███████╗╚██████╔╝╚███╔███╔╝   ██║                   ║
+    ║     ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝    ╚═╝                   ║
+    ║                                                                   ║
+    ║                        Version 1.0.0                             ║
+    ║                                                                   ║
+    ║      Interactive Jinja2 Template Rendering with Python           ║
+    ║                                                                   ║
+    ╚═══════════════════════════════════════════════════════════════════╝
 
 [cyan]Configuration:[/cyan]
   Templates: ./templates
@@ -41,20 +52,20 @@ python main.py
   State:     .state
   History:   .history
 
-template-assistant > use example.template
+flowy > use example.template
 [green]Loaded: example.template[/green]
-template-assistant (example.template) > set client_name "Acme Corp"
+flowy (example.template) > set client_name "Acme Corp"
 [green]Set client_name = Acme Corp[/green]
-template-assistant (example.template) > r
+flowy (example.template) > r
 [bold]Report for Acme Corp[/bold]
 ====================================
 Type: [green]weekly[/green]
-template-assistant (example.template) > ls
+flowy (example.template) > ls
 ```
 
 ### 🚀 Quick Launch Mode
 
-Start Template Assistant with pre-loaded template and save file:
+Start Flowy with pre-loaded template and save file:
 
 ```bash
 # Load template and save file, auto-render, then enter interactive mode
@@ -75,7 +86,7 @@ python main.py
 
 ## 📦 Installation
 
-The Template Assistant package can be installed via pip using several methods depending on your workflow.
+The Flowy package can be installed via pip using several methods depending on your workflow.
 
 ### Install from Wheel
 
@@ -88,7 +99,7 @@ pip install dist/*.whl
 Verify installation:
 
 ```bash
-template-assistant --help
+flowy --help
 ```
 
 ### Development Mode
@@ -184,9 +195,9 @@ For detailed testing documentation, writing tests, and CI/CD integration, see [T
 - `revert` toggles between template states
 - Session auto-saves to `.state`
 
-## � Display & Output Management
+## Display & Output Management
 
-The Template Assistant automatically adapts its output to your terminal dimensions for optimal readability.
+The Flowy application automatically adapts its output to your terminal dimensions for optimal readability.
 
 ### Terminal Width Detection
 
@@ -255,10 +266,10 @@ MIN_TABLE_COLUMN_WIDTH = 10        # Minimum width for table columns
 TRUNCATE_INDICATOR = "..."         # Indicator for truncated content
 ```
 
-## �📁 Project Structure
+## 📁 Project Structure
 
 ```
-template-assistant/
+flowy/
 ├── main.py                   # Entry point with argparse
 ├── configuration.py          # Settings & aliases
 ├── interactive_shell.py      # Interactive CLI with tab completion
@@ -345,7 +356,7 @@ def my_function(param):
 
 ### ⚙️ Configuration
 ```bash
-export TEMPLATE_ASSISTANT_MODULES=/custom/modules
+export FLOWY_MODULES=/custom/modules
 ```
 
 ### 🔧 Features
@@ -365,9 +376,9 @@ render
 Customize via `configuration.py` or environment variables:
 
 ```bash
-export TEMPLATE_ASSISTANT_TEMPLATES=/custom/templates
-export TEMPLATE_ASSISTANT_SAVES=/custom/saves  
-export TEMPLATE_ASSISTANT_MODULES=/custom/modules
+export FLOWY_TEMPLATES=/custom/templates
+export FLOWY_SAVES=/custom/saves
+export FLOWY_MODULES=/custom/modules
 ```
 
 **Key Settings:**
@@ -463,7 +474,7 @@ Report for [bold]{{ client_name }}[/bold]
 **Color/Formatting Syntax:**
 ```
 [red]Red text[/red]
-[bold]Bold[/bold] 
+[bold]Bold[/bold]
 [green][bold]Green+Bold[/bold][/green]
 ```
 

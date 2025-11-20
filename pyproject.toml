@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "template-assistant"
-description = "Interactive Jinja2 Template Rendering with Python Integration"
+name = "flowy"
+description = "Flowy - Interactive Jinja2 Template Rendering with Python Integration"
 readme = "README.md"
 requires-python = ">=3.8"
 dynamic = ["version"]
@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
-keywords = ["template", "jinja2", "cli", "interactive", "rendering"]
+keywords = ["template", "jinja2", "cli", "interactive", "rendering", "flowy"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -36,13 +36,13 @@ dependencies = [
 ]
 
 [project.scripts]
-template-assistant = "main:main"
+flowy = "main:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/template-assistant"
-Documentation = "https://github.com/yourusername/template-assistant#readme"
-Repository = "https://github.com/yourusername/template-assistant.git"
-Issues = "https://github.com/yourusername/template-assistant/issues"
+Homepage = "https://github.com/yourusername/flowy"
+Documentation = "https://github.com/yourusername/flowy#readme"
+Repository = "https://github.com/yourusername/flowy.git"
+Issues = "https://github.com/yourusername/flowy/issues"
 
 [tool.setuptools]
 py-modules = [

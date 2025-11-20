@@ -52,6 +52,18 @@ below for quick reference.
 #}
 {% endif %}
 
+# ============ Comment Examples ============
+# Lines starting with '#' automatically render in green!
+# This is useful for adding visible notes, section headers, or documentation
+# within your template output.
+#
+# NOTE: These comments appear in the rendered output (unlike Jinja2 {# #} comments)
+# TODO: Remember to update project status before sharing this report
+#
+# You can use them for section dividers, reminders, or any inline documentation
+# that should be visible but visually distinct from regular content.
+# ==========================================
+
 [bold]Projects Overview:[/bold]
 ==================
 
@@ -91,7 +103,7 @@ For questions, contact: {{ contact_email }}
 [green]End of Report[/green]
 [bold]=================================================================================[/bold]
 
-{# 
+{#
 Template Features Demonstrated:
 1. Variable substitution: {{ variable_name }}
 2. Filters: {{ variable | filter }}
@@ -103,4 +115,5 @@ Template Features Demonstrated:
 8. Default values: {{ variable | default('fallback') }}
 9. Undefined variable checking: {% if variable is undefined %}
 10. Loop variables: {{ loop.index }}
+11. Line comments: Lines starting with # render in green
 #}

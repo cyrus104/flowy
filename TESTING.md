@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document provides comprehensive guidance for running and writing tests for the Workflow project. The project uses Python's `unittest` framework with 10 test modules covering all major components including template parsing, rendering, state management, display functionality, and the interactive shell.
+This document provides comprehensive guidance for running and writing tests for the Flowy project. The project uses Python's `unittest` framework with 10 test modules covering all major components including template parsing, rendering, state management, display functionality, and the interactive shell.
 
 All test files are located in the [`tests/`](tests/) directory.
 
@@ -49,7 +49,7 @@ python -m unittest discover tests
 **Example Success Output:**
 ```
 ================================
-  Workflow Test Suite Runner
+  Flowy Test Suite Runner
 ================================
 
 [INFO] Checking Python availability...
@@ -406,7 +406,7 @@ chmod +x run_tests.sh
 
 **Solution:** Always run tests from the project root directory:
 ```bash
-cd /path/to/workflow
+cd /path/to/flowy
 ./run_tests.sh
 ```
 

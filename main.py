@@ -1,7 +1,7 @@
 """
-Template Assistant Main Entry Point
+Flowy Main Entry Point
 
-Primary entry point for the Template Assistant application with support for both
+Primary entry point for the Flowy application with support for both
 interactive mode and quick launch mode via command-line arguments.
 
 Usage:
@@ -34,7 +34,7 @@ def parse_arguments():
         argparse.Namespace: Parsed arguments with template and save attributes
     """
     parser = argparse.ArgumentParser(
-        description='Template Assistant - Interactive Jinja2 Template Rendering with Python Integration',
+        description='Flowy - Interactive Jinja2 Template Rendering with Python Integration',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -71,8 +71,8 @@ auto-renders the output, then drops into interactive mode.
 
 def main():
     """
-    Main entry point for Template Assistant.
-    
+    Main entry point for Flowy.
+
     Handles both interactive mode and quick launch mode based on
     command-line arguments.
     """

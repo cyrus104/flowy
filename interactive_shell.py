@@ -1,8 +1,8 @@
 """
-Interactive Shell for Template Assistant
+Interactive Shell for Flowy
 
 Metasploit-inspired CLI with tab completion, command aliases, rich output, and full integration
-with all core components (StateManager, SaveFileManager, TemplateParser, TemplateRenderer, 
+with all core components (StateManager, SaveFileManager, TemplateParser, TemplateRenderer,
 HistoryLogger, ModuleLoader).
 
 Supports both interactive mode and quick launch mode for programmatic command execution.
@@ -31,7 +31,7 @@ from save_file_manager import save_file_manager
 from template_parser import TemplateParser, TemplateNotFoundError, TemplateParseError, TemplateDefinition
 from template_renderer import template_renderer, RenderResult, ColorFormatter
 from history_logger import history_logger
-from shell_completers import ShellCompleter
+from shell_completers import ShellCompleter, _get_template_files, _get_save_files
 from display_manager import display_manager
 from file_validator import FileValidator, ValidationResult
 
@@ -199,7 +199,15 @@ class InteractiveShell:
     
     def _get_prompt(self) -> str:
         """Generate dynamic prompt."""
-        template_part = f" ({self.current_template.relative_path})" if self.current_template else ""
+        if self.current_template:
+            template_path = self.current_template.relative_path
+            if template_path.endswith('.template'):
+                display_name = template_path[:-len('.template')]
+            else:
+                display_name = template_path
+            template_part = f" ({display_name})"
+        else:
+            template_part = ""
         return PROMPT_TEMPLATE.format(template=template_part)
     
     def _handle_command(self, user_input: str):
@@ -532,6 +540,7 @@ class InteractiveShell:
             ["revert", self._get_aliases_for('revert'), "revert", "Toggle previous template state"],
             ["restore", self._get_aliases_for('restore'), "restore", "Restore state from before last program start"],
             ["validate", self._get_aliases_for('validate'), "validate", "Check for duplicate filenames"],
+            ["reload", self._get_aliases_for('reload'), "reload", "Reload templates and saves dynamically"],
             ["help", self._get_aliases_for('help'), "help [command]", "Show this help or command details"],
             ["exit", self._get_aliases_for('exit'), "exit", "Exit the shell"],
         ]
@@ -720,6 +729,26 @@ VALIDATE_ON_STARTUP = True in configuration.py.
 
 [bold]Related:[/bold] use, load, save
 """,
+            'reload': """
+[cyan][bold]Command: reload[/bold][/cyan]
+[bold]Syntax:[/bold]  reload
+
+[bold]Description:[/bold]
+Dynamically reload all template and save files without restarting the program.
+Clears all internal caches (template renderer, Jinja2 environments, and file lists)
+so that any changes to template or save files are immediately available.
+
+[bold]Examples:[/bold]
+  reload   # Refresh all templates and saves
+
+[bold]Use Cases:[/bold]
+- You edited a template file and want to see changes immediately
+- You added new template or save files to the directories
+- You modified save file contents and want to reload them
+- You want to clear cached Jinja2 environments after template changes
+
+[bold]Related:[/bold] use, load, save, validate
+""",
             'help': f"""
 [cyan][bold]Command: help[/bold][/cyan]
 [bold]Aliases:[/bold] {self._get_aliases_for('help')}
@@ -823,6 +852,18 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
     def cmd_validate(self, args: list[str]):
         """Validate templates and saves directories for duplicate filenames."""
         self._run_validation(show_success=True)
+
+    def cmd_reload(self, args: list[str]):
+        """Reload templates and saves dynamically without restarting."""
+        # Clear template renderer caches (environment and loader caches)
+        self.renderer.clear_caches()
+
+        # Refresh shell completer's template and save file lists
+        self.completer._templates = _get_template_files()
+        self.completer._saves = _get_save_files()
+
+        # Display success message
+        self._display_success("Reloaded templates, saves, and cleared render cache")
 
     def _run_validation(self, show_success: bool = True):
         """
