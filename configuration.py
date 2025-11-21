@@ -67,22 +67,49 @@ Examples:
 """
 
 BANNER_ASCII = r"""
-    ══════════════════════════════════════════════════════════════════
-                                                                      
-         ███████╗██╗      ██████╗ ██╗    ██╗██╗   ██╗                
-         ██╔════╝██║     ██╔═══██╗██║    ██║╚██╗ ██╔╝                
-         █████╗  ██║     ██║   ██║██║ █╗ ██║ ╚████╔╝                 
-         ██╔══╝  ██║     ██║   ██║██║███╗██║  ╚██╔╝                  
-         ██║     ███████╗╚██████╔╝╚███╔███╔╝   ██║                   
-         ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝    ╚═╝                   
-                                                                      
-                    Version {version}                          
-                                                                      
-         Templating the world one render at a time.           
-                                                                       
-    ══════════════════════════════════════════════════════════════════
+    ╔══════════════════════════════════════════════════════╗
+    ║                                                      ║
+    ║     ███████╗██╗      ██████╗ ██╗    ██╗██╗   ██╗     ║
+    ║     ██╔════╝██║     ██╔═══██╗██║    ██║╚██╗ ██╔╝     ║
+    ║     █████╗  ██║     ██║   ██║██║ █╗ ██║ ╚████╔╝      ║
+    ║     ██╔══╝  ██║     ██║   ██║██║███╗██║  ╚██╔╝       ║
+    ║     ██║     ███████╗╚██████╔╝╚███╔███╔╝   ██║        ║
+    ║     ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝    ╚═╝        ║
+    ║                                                      ║
+    ║                Version {version}                     ║
+    ║                                                      ║
+    ║     Templating the world one render at a time.       ║
+    ║                                                      ║
+    ╚══════════════════════════════════════════════════════╝
 """
 """ASCII art banner displayed on startup"""
+
+
+# ============================================================================
+# Editor Settings
+# ============================================================================
+
+DEFAULT_EDITOR = os.getenv('FLOWY_EDITOR', os.getenv('TEMPLATE_ASSISTANT_EDITOR', 'code'))
+"""
+Editor command to launch when using the edit command.
+
+Default: 'code' (Visual Studio Code)
+
+The editor command will be invoked with the full system path to the file.
+Can be overridden via FLOWY_EDITOR environment variable.
+Legacy TEMPLATE_ASSISTANT_EDITOR variable is also honored for backward compatibility.
+
+Common editor commands:
+  - 'code': Visual Studio Code
+  - 'vim': Vim editor
+  - 'nano': Nano editor
+  - 'emacs': Emacs editor
+  - 'subl': Sublime Text
+  - 'atom': Atom editor
+
+Example usage:
+  export FLOWY_EDITOR=vim
+"""
 
 
 # ============================================================================

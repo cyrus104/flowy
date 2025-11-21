@@ -101,7 +101,7 @@ class ShellCompleter(Completer):
         for aliases in COMMAND_ALIASES.values():
             all_commands.update(aliases)
         # Add commands that don't have aliases
-        all_commands.update(['load', 'save', 'list', 'set', 'unset', 'exit', 'revert'])
+        all_commands.update(['load', 'save', 'list', 'set', 'unset', 'exit', 'revert', 'edit'])
         self._commands = sorted(all_commands)
     
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Generator[Completion, None, None]:
@@ -132,6 +132,13 @@ class ShellCompleter(Completer):
                 for path in self._saves:
                     yield Completion(path, start_position=0)
                 return
+            elif command == 'edit':
+                # Complete both templates and saves for 'edit' command
+                for path in self._templates:
+                    yield Completion(path, start_position=0)
+                for path in self._saves:
+                    yield Completion(path, start_position=0)
+                return
         
         # Context-specific completion for arguments
         if command in ['use', 'load', 'save', 'list']:
@@ -143,6 +150,16 @@ class ShellCompleter(Completer):
                         yield Completion(path, start_position=-len(word))
             elif command == 'use' and len(args) == 2:
                 # Second arg for use: save path completion
+                for path in self._saves:
+                    if path.startswith(word):
+                        yield Completion(path, start_position=-len(word))
+
+        elif command == 'edit':
+            # First arg: complete both templates and saves
+            if len(args) == 1:
+                for path in self._templates:
+                    if path.startswith(word):
+                        yield Completion(path, start_position=-len(word))
                 for path in self._saves:
                     if path.startswith(word):
                         yield Completion(path, start_position=-len(word))

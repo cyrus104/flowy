@@ -11,6 +11,7 @@ Supports both interactive mode and quick launch mode for programmatic command ex
 import sys
 import os
 import shlex
+import subprocess
 from typing import Optional, Dict, Any
 from pathlib import Path
 from prompt_toolkit import PromptSession
@@ -23,7 +24,7 @@ from colorama import Fore, Back, Style as ColoramaStyle
 from configuration import (
     BANNER_ASCII, PROMPT_TEMPLATE, COMMAND_ALIASES, SHOW_CONFIG_ON_STARTUP,
     SHOW_UNDEFINED_SUMMARY, TEMPLATES_DIR, SAVES_DIR, STATE_FILE, HISTORY_FILE,
-    VERSION, APP_NAME, MODULES_DIR, VALIDATE_ON_STARTUP
+    VERSION, APP_NAME, MODULES_DIR, VALIDATE_ON_STARTUP, DEFAULT_EDITOR
 )
 
 from state_manager import state_manager
@@ -526,7 +527,7 @@ class InteractiveShell:
     def _display_general_help(self):
         """Display overview of all available commands."""
         print(self.color_formatter.format("\n[cyan][bold]Available Commands:[/bold][/cyan]\n"))
-        
+
         headers = ["Command", "Aliases", "Syntax", "Description"]
         rows = [
             ["use", self._get_aliases_for('use'), "use <template> [save]", "Load template (+ optional auto-render)"],
@@ -537,6 +538,7 @@ class InteractiveShell:
             ["save", self._get_aliases_for('save'), "save <save>", "Save current variables to file"],
             ["render", self._get_aliases_for('render'), "render", "Render current template"],
             ["ls", self._get_aliases_for('ls'), "ls", "Show variables table"],
+            ["edit", self._get_aliases_for('edit'), "edit <template|save>", "Open template or save file in editor"],
             ["revert", self._get_aliases_for('revert'), "revert", "Toggle previous template state"],
             ["restore", self._get_aliases_for('restore'), "restore", "Restore state from before last program start"],
             ["validate", self._get_aliases_for('validate'), "validate", "Check for duplicate filenames"],
@@ -544,7 +546,7 @@ class InteractiveShell:
             ["help", self._get_aliases_for('help'), "help [command]", "Show this help or command details"],
             ["exit", self._get_aliases_for('exit'), "exit", "Exit the shell"],
         ]
-        
+
         table = self._format_table(headers, rows)
         print(table)
         print(self.color_formatter.format("\n[green]Tip: Type 'help <command>' for detailed information about a specific command.[/green]\n"))
@@ -749,6 +751,29 @@ so that any changes to template or save files are immediately available.
 
 [bold]Related:[/bold] use, load, save, validate
 """,
+            'edit': f"""
+[cyan][bold]Command: edit[/bold][/cyan]
+[bold]Aliases:[/bold] {self._get_aliases_for('edit')}
+[bold]Syntax:[/bold]  edit <template_path|save_path>
+
+[bold]Description:[/bold]
+Open a template or save file in the configured editor. The command first attempts
+to resolve the path as a template file, then falls back to save files if not found.
+The editor is launched with the full system path to the file.
+
+[bold]Examples:[/bold]
+  edit example              # Open example.template in editor
+  edit example.template     # Open with full extension
+  edit reports/monthly      # Open from subdirectory
+  edit client               # Open save file named 'client'
+  edit projects/demo        # Open save from subdirectory
+
+[bold]Note:[/bold]
+Editor command is configured via DEFAULT_EDITOR in configuration.py or FLOWY_EDITOR
+environment variable (current: {DEFAULT_EDITOR})
+
+[bold]Related:[/bold] use, load, save, validate
+""",
             'help': f"""
 [cyan][bold]Command: help[/bold][/cyan]
 [bold]Aliases:[/bold] {self._get_aliases_for('help')}
@@ -864,6 +889,58 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
 
         # Display success message
         self._display_success("Reloaded templates, saves, and cleared render cache")
+
+    def cmd_edit(self, args: list[str]):
+        """Open template or save file in editor."""
+        if not args:
+            self._display_error("Usage: edit <template_path|save_path>")
+            return
+
+        file_path = args[0]
+        full_path = None
+
+        # Try to resolve as template first (without parsing to allow editing broken templates)
+        # Try with and without .template extension
+        candidate_paths = []
+        if file_path.endswith('.template'):
+            candidate_paths.append(file_path)
+        else:
+            candidate_paths.append(file_path + '.template')
+            candidate_paths.append(file_path)
+
+        # Check if any template file exists on disk
+        template_found = False
+        for candidate_path in candidate_paths:
+            test_path = os.path.normpath(os.path.join(TEMPLATES_DIR, candidate_path))
+            if os.path.exists(test_path):
+                full_path = os.path.abspath(test_path)
+                template_found = True
+                break
+
+        if not template_found:
+            # Not a template, try as save file
+            save_full_path = os.path.normpath(os.path.join(SAVES_DIR, file_path))
+            if os.path.exists(save_full_path):
+                full_path = os.path.abspath(save_full_path)
+            else:
+                # Try with .save extension fallback
+                save_full_path_with_ext = save_full_path + '.save'
+                if os.path.exists(save_full_path_with_ext):
+                    full_path = os.path.abspath(save_full_path_with_ext)
+                else:
+                    self._display_error(f"File not found in templates or saves: {file_path}")
+                    return
+
+        # Launch editor with resolved path
+        try:
+            # Split editor command to handle arguments (e.g., "code -w")
+            editor_tokens = shlex.split(DEFAULT_EDITOR)
+            editor_tokens.append(full_path)
+            subprocess.run(editor_tokens)
+        except FileNotFoundError:
+            self._display_error(f"Editor command not found: {DEFAULT_EDITOR}")
+        except subprocess.SubprocessError as e:
+            self._display_error(f"Failed to launch editor: {e}")
 
     def _run_validation(self, show_success: bool = True):
         """
