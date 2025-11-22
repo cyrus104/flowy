@@ -1,0 +1,14 @@
+[globals]
+company_name = Global Company
+year = 2025
+region = Global Region
+
+[general]
+company_name = General Company
+department = General Department
+project = General Project
+
+[example]
+company_name = Template Company
+client_name = Template Client
+status = active

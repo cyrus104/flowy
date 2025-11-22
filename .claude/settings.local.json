@@ -13,6 +13,7 @@
       "Bash(echo:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "acceptEdits"
   }
 }

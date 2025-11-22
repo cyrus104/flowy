@@ -149,6 +149,20 @@ class TestColorFormatter(unittest.TestCase):
             self.assertIn('test', result)  # Content preserved
 
     @patch('template_renderer.configuration.COLOR_OUTPUT_ENABLED', True)
+    def test_orange_color(self):
+        """Test orange color tag conversion to ANSI escape codes."""
+        result = self.formatter.format('[orange]text[/orange]')
+        self.assertIn('\033[38;5;208m', result)  # Orange 256-color ANSI code
+        self.assertIn('text', result)
+        self.assertIn('\x1b[0m', result)  # Reset
+
+    @patch('template_renderer.configuration.COLOR_OUTPUT_ENABLED', False)
+    def test_orange_color_disabled(self):
+        """Test orange tags stripped when colors are disabled."""
+        result = self.formatter.format('[orange]text[/orange]')
+        self.assertEqual(result, 'text')  # No ANSI codes
+
+    @patch('template_renderer.configuration.COLOR_OUTPUT_ENABLED', True)
     def test_hash_line_green_formatting(self):
         """Test that a line starting with # is automatically colored green."""
         result = self.formatter.format('# This is a comment')

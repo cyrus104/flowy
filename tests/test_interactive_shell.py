@@ -633,6 +633,82 @@ Title: {{ title }}
             # Should show help for 'render' command
             self.assertIn('render', printed_text.lower())
 
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    @patch('configuration.COLOR_OUTPUT_ENABLED', True)
+    def test_get_prompt_with_template_orange_color(self, mock_history, mock_renderer,
+                                                     mock_parser_class, mock_save, mock_state):
+        """Test prompt generation with orange-colored template names."""
+        shell = InteractiveShell()
+
+        # Create mock template with relative_path
+        mock_template = Mock()
+        mock_template.relative_path = 'example.template'
+        shell.current_template = mock_template
+
+        # Call _get_prompt() and capture result
+        result = shell._get_prompt()
+
+        # Verify the result contains orange ANSI escape code
+        self.assertIn('\033[38;5;208m', result)
+        # Verify the result contains template name (without .template extension)
+        self.assertIn('example', result)
+        # Verify the result contains ANSI reset codes
+        self.assertIn('\x1b[0m', result)
+        # Verify the result does NOT contain raw markup tags
+        self.assertNotIn('[orange]', result)
+        self.assertNotIn('[/orange]', result)
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    def test_get_prompt_without_template(self, mock_history, mock_renderer,
+                                          mock_parser_class, mock_save, mock_state):
+        """Test prompt generation without a loaded template."""
+        shell = InteractiveShell()
+
+        # Ensure current_template is None
+        shell.current_template = None
+
+        # Call _get_prompt() and capture result
+        result = shell._get_prompt()
+
+        # Verify the result is the base prompt without any template name
+        self.assertIsInstance(result, str)
+        # Verify the result does not contain orange ANSI codes
+        self.assertNotIn('\033[38;5;208m', result)
+
+    @patch('interactive_shell.state_manager')
+    @patch('interactive_shell.save_file_manager')
+    @patch('interactive_shell.TemplateParser')
+    @patch('interactive_shell.template_renderer')
+    @patch('interactive_shell.history_logger')
+    def test_get_prompt_formats_through_color_formatter(self, mock_history, mock_renderer,
+                                                         mock_parser_class, mock_save, mock_state):
+        """Test that prompt goes through color_formatter for ANSI conversion."""
+        shell = InteractiveShell()
+
+        # Create mock template
+        mock_template = Mock()
+        mock_template.relative_path = 'test.template'
+        shell.current_template = mock_template
+
+        # Mock the format method on the instance
+        with patch.object(shell.color_formatter, 'format', return_value='formatted_prompt') as mock_format:
+            # Call _get_prompt()
+            result = shell._get_prompt()
+
+            # Verify that color_formatter.format() was called
+            mock_format.assert_called_once()
+            # Verify the argument contains [orange] tags
+            call_args = mock_format.call_args[0][0]
+            self.assertIn('[orange]', call_args)
+
 
 class TestQuickLaunch(unittest.TestCase):
     """Test quick launch functionality."""

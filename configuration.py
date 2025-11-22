@@ -76,11 +76,11 @@ BANNER_ASCII = r"""
     ║     ██║     ███████╗╚██████╔╝╚███╔███╔╝   ██║        ║
     ║     ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝    ╚═╝        ║
     ║                                                      ║
-    ║                Version {version}                     ║
     ║                                                      ║
     ║     Templating the world one render at a time.       ║
     ║                                                      ║
     ╚══════════════════════════════════════════════════════╝
+                   Version {version} 
 """
 """ASCII art banner displayed on startup"""
 
@@ -120,6 +120,10 @@ COMMAND_ALIASES = {
     'render': ['r', 're'],
     'ls': ['ll'],
     'use': [],
+    'push': [],
+    'setglobal': ['sg'],
+    'unsetglobal': ['ug'],
+    'listglobals': ['lg', 'globals'],
     'help': ['h', '?'],
     'restore': ['res'],
     # Users can add custom aliases here as needed
@@ -140,6 +144,9 @@ SHOW_CONFIG_ON_STARTUP = True
 
 COLOR_OUTPUT_ENABLED = True
 """Enable terminal color formatting for output"""
+
+SHOW_GLOBALS_IN_LS = True
+"""Display global variables section in the 'ls' command output"""
 
 VALIDATE_ON_STARTUP = False
 """

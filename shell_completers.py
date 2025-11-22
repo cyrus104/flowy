@@ -101,7 +101,8 @@ class ShellCompleter(Completer):
         for aliases in COMMAND_ALIASES.values():
             all_commands.update(aliases)
         # Add commands that don't have aliases
-        all_commands.update(['load', 'save', 'list', 'set', 'unset', 'exit', 'revert', 'edit'])
+        all_commands.update(['load', 'save', 'list', 'set', 'unset', 'exit', 'revert', 'edit', 'push', 
+                            'setglobal', 'unsetglobal', 'listglobals'])
         self._commands = sorted(all_commands)
     
     def get_completions(self, document: Document, complete_event: CompleteEvent) -> Generator[Completion, None, None]:
@@ -122,8 +123,8 @@ class ShellCompleter(Completer):
         
         # If command expects files and user typed space after command, complete files
         if len(args) == 0 and text_before_cursor.endswith(' '):
-            if command == 'use':
-                # Complete templates for 'use' command
+            if command in ['use', 'push']:
+                # Complete templates for 'use' and 'push' commands
                 for path in self._templates:
                     yield Completion(path, start_position=0)
                 return
@@ -141,10 +142,10 @@ class ShellCompleter(Completer):
                 return
         
         # Context-specific completion for arguments
-        if command in ['use', 'load', 'save', 'list']:
+        if command in ['use', 'push', 'load', 'save', 'list']:
             # First arg: template/save path completion
             if len(args) == 1:
-                paths = self._templates if command == 'use' else self._saves
+                paths = self._templates if command in ['use', 'push'] else self._saves
                 for path in paths:
                     if path.startswith(word):
                         yield Completion(path, start_position=-len(word))
@@ -169,6 +170,15 @@ class ShellCompleter(Completer):
             if len(args) == 1 and not text_before_cursor.endswith(' '):
                 vars = _get_variable_names(self.template_def)
                 for var in vars:
+                    if var.startswith(word):
+                        yield Completion(var, start_position=-len(word))
+        
+        elif command == 'unsetglobal':
+            # First arg: global variable name completion
+            if len(args) == 1 and not text_before_cursor.endswith(' '):
+                from state_manager import state_manager
+                global_vars = state_manager.get_all_global_variables().keys()
+                for var in global_vars:
                     if var.startswith(word):
                         yield Completion(var, start_position=-len(word))
             # Second arg for set: variable option completion

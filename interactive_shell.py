@@ -17,6 +17,7 @@ from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
+from prompt_toolkit.formatted_text import ANSI
 
 import colorama
 from colorama import Fore, Back, Style as ColoramaStyle
@@ -24,7 +25,8 @@ from colorama import Fore, Back, Style as ColoramaStyle
 from configuration import (
     BANNER_ASCII, PROMPT_TEMPLATE, COMMAND_ALIASES, SHOW_CONFIG_ON_STARTUP,
     SHOW_UNDEFINED_SUMMARY, TEMPLATES_DIR, SAVES_DIR, STATE_FILE, HISTORY_FILE,
-    VERSION, APP_NAME, MODULES_DIR, VALIDATE_ON_STARTUP, DEFAULT_EDITOR
+    VERSION, APP_NAME, MODULES_DIR, VALIDATE_ON_STARTUP, DEFAULT_EDITOR,
+    SHOW_GLOBALS_IN_LS
 )
 
 from state_manager import state_manager
@@ -206,10 +208,10 @@ class InteractiveShell:
                 display_name = template_path[:-len('.template')]
             else:
                 display_name = template_path
-            template_part = f" ({display_name})"
+            template_part = f" ([orange]{display_name}[/orange])"
         else:
             template_part = ""
-        return PROMPT_TEMPLATE.format(template=template_part)
+        return ANSI(self.color_formatter.format(PROMPT_TEMPLATE.format(template=template_part)))
     
     def _handle_command(self, user_input: str):
         """Parse and dispatch command."""
@@ -284,6 +286,48 @@ class InteractiveShell:
             if self.current_template:
                 self.cmd_render([])
     
+    def cmd_push(self, args: list[str]):
+        """Load a new template while preserving current variables.
+        
+        Args:
+            args: Template name to load
+        """
+        # Validate that a template name argument is provided
+        if not args:
+            self._display_error("Usage: push <template>")
+            return
+        
+        template_name = args[0]
+        
+        # Capture current variables before loading new template
+        captured_variables = state_manager.get_all_variables()
+        
+        # Parse and load the new template
+        try:
+            self.current_template = self.template_parser.parse(template_name)
+            canonical_path = self.current_template.relative_path
+            
+            # Update the completer with the new template
+            self.completer.update_template(self.current_template)
+            
+            # Set the new template in state manager
+            state_manager.set_template(canonical_path)
+            
+            # Restore the captured variables
+            state_manager.set_variables(captured_variables)
+            
+            # Display success message
+            display_name = canonical_path.replace('.template', '')
+            self._display_success(f"Pushed template: {display_name}")
+            print(self.color_formatter.format(f"[cyan]Preserved {len(captured_variables)} variable(s)[/cyan]"))
+            
+        except TemplateNotFoundError as e:
+            self._display_error(f"Template not found: {e}")
+            return
+        except TemplateParseError as e:
+            self._display_error(f"Template error: {e}")
+            return
+    
     def cmd_load(self, args: list[str]):
         """Load variables from save file."""
         if not self.current_template:
@@ -311,6 +355,15 @@ class InteractiveShell:
         # Use save path as-is (no extension modification)
         state_manager.set_variables(variables)
         self.current_save_path = save_path
+
+        # Also load global variables from the same save file
+        try:
+            save_data = save_file_manager.load(save_path)
+            global_vars = save_data.get_global_variables()
+            if global_vars:
+                state_manager.set_global_variables(global_vars)
+        except Exception:
+            pass  # Ignore errors loading globals
 
         # Build comparison table
         headers = ["Variable", "Current Value", "Loaded Value"]
@@ -410,14 +463,88 @@ class InteractiveShell:
         except Exception as e:
             self._display_error(f"Failed to unset variable: {e}")
     
+    def cmd_setglobal(self, args: list[str]):
+        """Set a global variable that applies across all templates."""
+        if len(args) < 2:
+            self._display_error("Usage: setglobal <variable> <value>")
+            return
+        
+        var_name = args[0]
+        value = ' '.join(args[1:])
+        
+        # Get old value for display
+        old_value = state_manager.get_global_variable(var_name)
+        old_display = f'"{old_value}"' if old_value is not None else "<not set>"
+        
+        # Set the global variable
+        state_manager.set_global_variable(var_name, value)
+        
+        # Display success message
+        print(self.color_formatter.format(f"  [cyan]{var_name}[/cyan] from {old_display} to \"{value}\""))
+    
+    def cmd_unsetglobal(self, args: list[str]):
+        """Remove a global variable."""
+        if not args:
+            self._display_error("Usage: unsetglobal <variable>")
+            return
+        
+        var_name = args[0]
+        
+        # Check if variable exists
+        if state_manager.get_global_variable(var_name) is None:
+            self._display_error(f"Global variable '{var_name}' not found")
+            return
+        
+        # Remove the global variable
+        state_manager.unset_global_variable(var_name)
+        self._display_success(f"Removed global variable: {var_name}")
+    
+    def cmd_listglobals(self, args: list[str]):
+        """Display all global variables in a formatted table."""
+        global_vars = state_manager.get_all_global_variables()
+        
+        if not global_vars:
+            print(self.color_formatter.format("[yellow]No global variables set.[/yellow]"))
+            return
+        
+        print(self.color_formatter.format("\n[cyan][bold]Global Variables:[/bold][/cyan]\n"))
+        
+        # Format as table
+        headers = ["Variable", "Value"]
+        rows = []
+        for var_name, value in sorted(global_vars.items()):
+            # Format value for display
+            if isinstance(value, str):
+                display_value = f'"{value}"'
+            else:
+                display_value = str(value)
+            
+            # Wrap long values
+            wrapped_value = self.display_manager.wrap_text(display_value, width=60)
+            rows.append([var_name, wrapped_value])
+        
+        # Display table
+        table_output = self._format_table(headers, rows)
+        print(table_output)
+    
     def cmd_save(self, args: list[str]):
         """Save current variables to file."""
-        if not self.current_template:
+        # Parse optional --globals or -g flag
+        save_globals = False
+        filtered_args = []
+        for arg in args:
+            if arg in ('--globals', '-g'):
+                save_globals = True
+            else:
+                filtered_args.append(arg)
+
+        # When saving globals, we don't need a template loaded
+        if not save_globals and not self.current_template:
             self._display_error("Load template first with 'use'")
             return
 
         # Handle default save file prompt when no args provided
-        if not args:
+        if not filtered_args:
             if self.current_save_path:
                 try:
                     response = input(f"Save to {self.current_save_path}? (Y/n): ")
@@ -437,10 +564,10 @@ class InteractiveShell:
                     self._display_error("Save operation cancelled.")
                     return
             else:
-                self._display_error("Usage: save <save_path>")
+                self._display_error("Usage: save <save_path> [--globals|-g]")
                 return
         else:
-            save_path = args[0]
+            save_path = filtered_args[0]
 
         # Check if file exists and prompt for merge confirmation
         full_path = os.path.normpath(os.path.join(SAVES_DIR, save_path))
@@ -464,15 +591,27 @@ class InteractiveShell:
                 return
 
         try:
-            variables = state_manager.get_all_variables()
-            save_file_manager.save_variables(save_path, variables, self.current_template.relative_path)
+            if save_globals:
+                # Save global variables to [globals] section
+                global_variables = state_manager.get_all_global_variables()
+                save_file_manager.save_variables(save_path, global_variables, is_global=True)
 
-            # Display saved variables
-            section = self.current_template.relative_path
-            for var_name, value in variables.items():
-                print(f"  Saved [{section}] {var_name} = {value}")
+                # Display saved global variables
+                for var_name, value in global_variables.items():
+                    print(f"  Saved [globals] {var_name} = {value}")
 
-            self._display_success(f"Saved variables to: {save_path}")
+                self._display_success(f"Saved global variables to: {save_path}")
+            else:
+                # Save template-specific variables
+                variables = state_manager.get_all_variables()
+                save_file_manager.save_variables(save_path, variables, self.current_template.relative_path)
+
+                # Display saved variables
+                section = self.current_template.relative_path
+                for var_name, value in variables.items():
+                    print(f"  Saved [{section}] {var_name} = {value}")
+
+                self._display_success(f"Saved variables to: {save_path}")
         except Exception as e:
             self._display_error(f"Failed to save: {e}")
     
@@ -531,10 +670,14 @@ class InteractiveShell:
         headers = ["Command", "Aliases", "Syntax", "Description"]
         rows = [
             ["use", self._get_aliases_for('use'), "use <template> [save]", "Load template (+ optional auto-render)"],
+            ["push", self._get_aliases_for('push'), "push <template>", "Load template while preserving variables"],
             ["load", self._get_aliases_for('load'), "load <save>", "Load variables from save file"],
             ["list", self._get_aliases_for('list'), "list <save>", "Show sections in save file"],
             ["set", self._get_aliases_for('set'), "set <var> <value>", "Set variable value"],
             ["unset", self._get_aliases_for('unset'), "unset <var>", "Remove variable"],
+            ["setglobal", self._get_aliases_for('setglobal'), "setglobal <var> <value>", "Set global variable"],
+            ["unsetglobal", self._get_aliases_for('unsetglobal'), "unsetglobal <var>", "Remove global variable"],
+            ["listglobals", self._get_aliases_for('listglobals'), "listglobals", "Show all global variables"],
             ["save", self._get_aliases_for('save'), "save <save>", "Save current variables to file"],
             ["render", self._get_aliases_for('render'), "render", "Render current template"],
             ["ls", self._get_aliases_for('ls'), "ls", "Show variables table"],
@@ -809,10 +952,34 @@ Exit the interactive shell. You can also use Ctrl+D to exit.
             print(self.color_formatter.format("[yellow]Type 'help' to see all available commands.[/yellow]"))
     
     def _display_variables_table(self):
-        """Display formatted variables table."""
+        """Display formatted variables table with global variables section."""
+        # First display global variables if any exist and flag is enabled
+        global_vars = state_manager.get_all_global_variables()
+        if SHOW_GLOBALS_IN_LS and global_vars:
+            print(self.color_formatter.format("\n[cyan][bold]Global Variables[/bold][/cyan] (apply to all templates):\n"))
+
+            headers = ["Name", "Value"]
+            rows = []
+            for var_name, value in sorted(global_vars.items()):
+                # Format value for display
+                if isinstance(value, str):
+                    display_value = f'"{value}"'
+                else:
+                    display_value = str(value)
+                rows.append([var_name, display_value])
+
+            print(self._format_table(headers, rows))
+            print()  # Add spacing between sections
+        
+        # Then display template variables
         if not self.current_template.variables:
-            print(self.color_formatter.format("[yellow]No variables defined in template.[/yellow]"))
+            if not global_vars:
+                print(self.color_formatter.format("[yellow]No variables defined.[/yellow]"))
+            else:
+                print(self.color_formatter.format("[yellow]No template-specific variables defined.[/yellow]"))
             return
+        
+        print(self.color_formatter.format("[green][bold]Template Variables[/bold][/green]:\n"))
         
         variables = state_manager.get_all_variables()
         headers = ["Name", "Current Value", "Description", "Default", "Options"]

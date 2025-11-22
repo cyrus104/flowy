@@ -82,7 +82,7 @@ class ColorFormatter:
     COLORS = {
         'black': Fore.BLACK, 'red': Fore.RED, 'green': Fore.GREEN,
         'yellow': Fore.YELLOW, 'blue': Fore.BLUE, 'magenta': Fore.MAGENTA,
-        'cyan': Fore.CYAN, 'white': Fore.WHITE
+        'cyan': Fore.CYAN, 'white': Fore.WHITE, 'orange': '\033[38;5;208m'
     }
     
     BG_COLORS = {
@@ -290,7 +290,7 @@ class CustomTemplateLoader(BaseLoader):
     """Custom loader for template inclusion with save file context."""
 
     def __init__(self, templates_dir: str, parser: TemplateParser, save_manager: SaveFileManager):
-        self.templates_dir = Path(templates_dir)
+        self.templates_dir = Path(templates_dir).resolve()
         self.parser = parser
         self.save_manager = save_manager
         self._cache = {}
@@ -311,7 +311,10 @@ class CustomTemplateLoader(BaseLoader):
 
         # Security check: ensure path is within templates_dir
         if not full_path.is_relative_to(self.templates_dir):
-            raise jinja2.TemplateNotFound(f"Template outside templates dir: {template_path}")
+            raise jinja2.TemplateNotFound(
+                f"Template path resolves outside templates directory: '{template_path}' "
+                f"(resolved to: {full_path}, templates dir: {self.templates_dir})"
+            )
 
         # If the path exists as-is, return it
         if full_path.exists():
@@ -323,17 +326,26 @@ class CustomTemplateLoader(BaseLoader):
 
             # Security check for the extended path
             if not full_path_with_ext.is_relative_to(self.templates_dir):
-                raise jinja2.TemplateNotFound(f"Template outside templates dir: {template_path}")
+                raise jinja2.TemplateNotFound(
+                    f"Template path resolves outside templates directory: '{template_path}.template' "
+                    f"(resolved to: {full_path_with_ext}, templates dir: {self.templates_dir})"
+                )
 
             if full_path_with_ext.exists():
                 return full_path_with_ext
 
         # Neither path exists, raise error with both attempts
         if template_path.endswith('.template'):
-            raise jinja2.TemplateNotFound(f"Template not found: '{template_path}'")
+            raise jinja2.TemplateNotFound(
+                f"Template not found: '{template_path}' "
+                f"(searched: {self.templates_dir / template_path}). "
+                f"Verify the template file exists in the templates directory."
+            )
         else:
             raise jinja2.TemplateNotFound(
-                f"Template not found: '{template_path}' (tried: {template_path}, {template_path}.template)"
+                f"Template not found: '{template_path}' "
+                f"(searched: {self.templates_dir / template_path}, {self.templates_dir / (template_path + '.template')}). "
+                f"Verify the template file exists in the templates directory."
             )
 
     def get_source(self, environment, template_path):
@@ -471,8 +483,12 @@ class TemplateRenderer:
             if hasattr(_local_undefined_vars, 'undefined_vars'):
                 delattr(_local_undefined_vars, 'undefined_vars')
             
-            # Merge variables: user > save file > template defaults
-            merged_vars = self._merge_variables(template_def, variables, save_path)
+            # Import state_manager to get global variables
+            from state_manager import state_manager
+            global_vars = state_manager.get_all_global_variables() if state_manager else {}
+            
+            # Merge variables with CSS-like cascade including globals
+            merged_vars = self._merge_variables(template_def, variables, save_path, global_vars)
             
             # Setup Jinja2 environment with save_path for subtemplate auto-loading
             env = self._setup_jinja_environment(template_def.path, save_path)
@@ -509,36 +525,83 @@ class TemplateRenderer:
             )
     
     def render_string(self, template_string: str, variables: Dict[str, Any]) -> RenderResult:
-        """Render template string directly."""
+        """
+        Render template string directly.
+
+        Note: This method includes global variables from state_manager and user-provided
+        variables. It does not apply save-file layers or template defaults, as those
+        require a TemplateDefinition and save_path context.
+        """
+        # Import state_manager lazily to get global variables
+        try:
+            from state_manager import state_manager
+            global_vars = state_manager.get_all_global_variables() if state_manager else {}
+        except ImportError:
+            global_vars = {}
+
+        # Merge global variables with user variables (user variables take precedence)
+        merged = {**(global_vars or {}), **(variables or {})}
+
         env = self._setup_jinja_environment("(string)", None)  # No save_path for string rendering
         template = env.from_string(template_string)
-        raw_output = template.render(**variables)
+        raw_output = template.render(**merged)
         formatted = self.color_formatter.format(raw_output)
         return RenderResult(output=formatted, success=True)
     
-    def _merge_variables(self, template_def: TemplateDefinition, 
-                        user_vars: Dict[str, Any], 
-                        save_path: Optional[str]) -> Dict[str, Any]:
-        """Merge variables: user > save file > template defaults."""
+    def _merge_variables(self, template_def: TemplateDefinition,
+                        user_vars: Dict[str, Any],
+                        save_path: Optional[str],
+                        global_vars: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Merge variables with CSS-like cascade hierarchy:
+        Globals → Save File Globals → Save File General → Template Defaults → Save File Template → User Variables
+
+        Higher priority layers override lower priority ones.
+        """
         variables = {}
-        
-        # Template defaults from VARS section
+
+        # Layer 1: Global variables from state manager (lowest priority)
+        if global_vars:
+            variables.update(global_vars)
+
+        # Load save file once if provided
+        save_data = None
+        if save_path:
+            try:
+                save_data = self.save_manager.load(save_path)
+            except Exception:
+                pass  # Ignore save file errors during rendering
+
+        # Layer 2: Save file [globals] section
+        if save_data:
+            variables.update(save_data.get_global_variables())
+
+        # Layer 3: Save file [general] section
+        if save_data:
+            variables.update(save_data.general_variables)
+
+        # Layer 4: Template defaults from VARS section
         for var_def in template_def.variables.values():
             if var_def.default is not None:
                 variables[var_def.name] = var_def.default
-        
-        # Save file variables (if provided)
-        if save_path:
-            try:
-                save_vars = self.save_manager.load_variables_for_template(save_path, template_def.relative_path)
-                variables.update(save_vars)
-            except Exception:
-                pass  # Ignore save file errors during rendering
-        
-        # User variables override everything
+
+        # Layer 5: Save file template-specific section
+        if save_data:
+            # Get template-specific variables
+            normalized_path = template_def.relative_path
+            if normalized_path.endswith('.template'):
+                normalized_path = normalized_path[:-len('.template')]
+
+            if normalized_path in save_data.template_sections:
+                variables.update(save_data.template_sections[normalized_path])
+            elif template_def.relative_path in save_data.template_sections:
+                # Fallback for backward compatibility
+                variables.update(save_data.template_sections[template_def.relative_path])
+
+        # Layer 6: User variables override everything (highest priority)
         if user_vars:
             variables.update(user_vars)
-        
+
         return variables
     
     def _setup_jinja_environment(self, template_path: str, save_path: Optional[str] = None) -> jinja2.Environment:

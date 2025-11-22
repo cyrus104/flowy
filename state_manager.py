@@ -61,6 +61,7 @@ class SessionState:
     """
     template_path: Optional[str] = None
     variables: Dict[str, Any] = field(default_factory=dict)
+    global_variables: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""
     
     def __post_init__(self):
@@ -78,6 +79,7 @@ class SessionState:
         return cls(
             template_path=data.get('template'),
             variables=data.get('variables', {}),
+            global_variables=data.get('global_variables', {}),
             timestamp=data.get('timestamp')  # Optional - auto-generated if None
         )
     
@@ -86,6 +88,7 @@ class SessionState:
         return {
             'template': self.template_path,
             'variables': self.variables,
+            'global_variables': self.global_variables,
             'timestamp': self.timestamp
         }
     
@@ -145,16 +148,17 @@ class StateManager:
         """Load state from disk, handle missing file gracefully."""
         if not os.path.exists(self.state_file):
             return  # Fresh session
-        
+
         try:
             with open(self.state_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             # Deserialize current state
-            if data.get('current_template') is not None or data.get('variables'):
+            if data.get('current_template') is not None or data.get('variables') or data.get('global_variables'):
                 self.current_state = SessionState.from_dict({
                     'template': data.get('current_template'),
                     'variables': data.get('variables', {}),
+                    'global_variables': data.get('global_variables', {}),
                     'timestamp': data.get('timestamp', '')
                 })
             
@@ -173,11 +177,12 @@ class StateManager:
     def save_state(self) -> None:
         """Save current state atomically to disk."""
         self._ensure_directory_exists()
-        
+
         # Prepare data matching exact design spec
         data = {
             'current_template': self.current_state.template_path if self.current_state else None,
             'variables': self.current_state.variables if self.current_state else {},
+            'global_variables': self.current_state.global_variables if self.current_state else {},
             'timestamp': self.current_state.timestamp if self.current_state else '',
             'history': [state.to_dict() for state in self.history],
         }
@@ -276,10 +281,80 @@ class StateManager:
         """Check if template is loaded."""
         return self.current_state is not None and self.current_state.template_path is not None
     
+    # ============================================================================
+    # Global Variable Management
+    # ============================================================================
+    
+    def set_global_variable(self, name: str, value: Any) -> None:
+        """Set a single global variable and save state."""
+        # Push current state to history before mutating
+        if self.current_state:
+            self._push_to_history()
+
+        if not self.current_state:
+            self.current_state = SessionState()
+
+        new_globals = self.current_state.global_variables.copy()
+        new_globals[name] = value
+        self.current_state = self.current_state.copy_with(global_variables=new_globals)
+        self.revert_toggle_state = None  # Clear revert state
+        self.save_state()
+    
+    def set_global_variables(self, variables: Dict[str, Any]) -> None:
+        """Bulk set global variables and save state."""
+        # Push current state to history before mutating
+        if self.current_state:
+            self._push_to_history()
+
+        if not self.current_state:
+            self.current_state = SessionState()
+
+        new_globals = self.current_state.global_variables.copy()
+        new_globals.update(variables)
+        self.current_state = self.current_state.copy_with(global_variables=new_globals)
+        self.revert_toggle_state = None  # Clear revert state
+        self.save_state()
+    
+    def unset_global_variable(self, name: str) -> None:
+        """Remove a global variable and save state."""
+        if self.current_state and name in self.current_state.global_variables:
+            # Push current state to history before mutating
+            self._push_to_history()
+
+            new_globals = self.current_state.global_variables.copy()
+            del new_globals[name]
+            self.current_state = self.current_state.copy_with(global_variables=new_globals)
+            self.revert_toggle_state = None  # Clear revert state
+            self.save_state()
+    
+    def get_global_variable(self, name: str) -> Any:
+        """Get a global variable value or None."""
+        if self.current_state:
+            return self.current_state.global_variables.get(name)
+        return None
+    
+    def get_all_global_variables(self) -> Dict[str, Any]:
+        """Get copy of all global variables."""
+        if self.current_state:
+            return self.current_state.global_variables.copy()
+        return {}
+    
+    def clear_global_variables(self) -> None:
+        """Clear all global variables and save state."""
+        if self.current_state:
+            # Push current state to history before mutating
+            self._push_to_history()
+
+            self.current_state = self.current_state.copy_with(global_variables={})
+            self.revert_toggle_state = None  # Clear revert state
+            self.save_state()
+    
     def revert(self) -> bool:
         """
         Revert to previous state with smart duplicate skipping and toggle behavior.
-        
+
+        Reverts both template and global variables to the previous snapshot.
+
         1. Toggle: If revert_toggle_state exists, swap back and clear
         2. Skip duplicates: Count consecutive same-template states from history end
            - If >1 consecutive, truncate entire chain, revert to state before chain
@@ -395,10 +470,11 @@ class StateManager:
                 data = json.load(f)
 
             # Deserialize current state
-            if data.get('current_template') is not None or data.get('variables'):
+            if data.get('current_template') is not None or data.get('variables') or data.get('global_variables'):
                 self.current_state = SessionState.from_dict({
                     'template': data.get('current_template'),
                     'variables': data.get('variables', {}),
+                    'global_variables': data.get('global_variables', {}),
                     'timestamp': data.get('timestamp', '')
                 })
             else:

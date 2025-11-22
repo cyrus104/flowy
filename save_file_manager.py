@@ -83,18 +83,25 @@ class SaveFileData:
     
     Fields:
         path: Save file path
+        globals_variables: Variables from [globals] section
         general_variables: Variables from [general] section
         template_sections: Dict of template_path -> variables dict
     """
     path: str
+    globals_variables: Dict[str, Any] = field(default_factory=dict)
     general_variables: Dict[str, Any] = field(default_factory=dict)
     template_sections: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     
     @classmethod
     def from_configparser(cls, config: configparser.ConfigParser, path: str) -> 'SaveFileData':
         """Deserialize from ConfigParser object."""
+        globals_vars = {}
         general_vars = {}
         template_sections = {}
+        
+        # Parse [globals] section
+        if config.has_section('globals'):
+            globals_vars = dict(config['globals'])
         
         # Parse [general] section
         if config.has_section('general'):
@@ -102,18 +109,23 @@ class SaveFileData:
         
         # Parse all other sections as template-specific
         for section in config.sections():
-            if section != 'general':
+            if section not in ['globals', 'general']:
                 template_sections[section] = dict(config[section])
         
         # Type coercion
+        globals_vars = cls._parse_values(globals_vars)
         general_vars = cls._parse_values(general_vars)
         template_sections = {k: cls._parse_values(v) for k, v in template_sections.items()}
         
-        return cls(path, general_vars, template_sections)
+        return cls(path, globals_vars, general_vars, template_sections)
     
     def to_configparser(self) -> configparser.ConfigParser:
         """Serialize to ConfigParser object."""
         config = configparser.ConfigParser(allow_no_value=True)
+        
+        # Add [globals] section first (logical ordering)
+        if self.globals_variables:
+            config['globals'] = self.globals_variables
         
         # Add [general] section
         if self.general_variables:
@@ -127,7 +139,7 @@ class SaveFileData:
     
     def get_variables_for_template(self, template_path: str) -> Dict[str, Any]:
         """
-        Get merged variables for template: general + template-specific (template overrides).
+        Get merged variables for template: globals + general + template-specific (CSS-like cascade).
 
         Section names use extensionless format (e.g., [example] not [example.template]).
         Backward compatible with old format that included .template extension.
@@ -140,7 +152,9 @@ class SaveFileData:
         # Normalize the template path by stripping .template extension
         normalized_path = _normalize_template_path(template_path)
 
-        result = self.general_variables.copy()
+        # Start with globals, then general, then template-specific (CSS-like cascade)
+        result = self.globals_variables.copy()
+        result.update(self.general_variables)
 
         # Try normalized path first (new format)
         if normalized_path in self.template_sections:
@@ -185,10 +199,15 @@ class SaveFileData:
                 result[key] = value
         return result
     
+    def get_global_variables(self) -> Dict[str, Any]:
+        """Return copy of globals_variables dictionary."""
+        return self.globals_variables.copy()
+    
     def __repr__(self) -> str:
+        glob_count = len(self.globals_variables)
         gen_count = len(self.general_variables)
         temp_count = len(self.template_sections)
-        return f"SaveFileData(path='{self.path}', general={gen_count}, templates={temp_count})"
+        return f"SaveFileData(path='{self.path}', globals={glob_count}, general={gen_count}, templates={temp_count})"
 
 
 # ============================================================================
@@ -255,9 +274,9 @@ class SaveFileManager:
             raise SaveFileSaveError(f"Failed to write save file: {e}", full_path)
     
     def save_variables(self, save_path: str, variables: Dict[str, Any],
-                      template_path: Optional[str] = None) -> None:
+                      template_path: Optional[str] = None, is_global: bool = False) -> None:
         """
-        Save variables to save file (general or template-specific section).
+        Save variables to save file (globals, general or template-specific section).
 
         Section names use extensionless format (e.g., [example] not [example.template]).
 
@@ -265,6 +284,7 @@ class SaveFileManager:
             save_path: Save file path (e.g., 'client_a' or 'projects/client')
             variables: Variables to save
             template_path: Template section name (e.g., 'example.template') or None for [general]
+            is_global: If True, save to [globals] section instead of [general] or template
         """
         full_path = os.path.normpath(os.path.join(self.saves_dir, save_path))
 
@@ -272,12 +292,22 @@ class SaveFileManager:
         try:
             save_data = self.load(save_path)
         except SaveFileNotFoundError:
-            save_data = SaveFileData(full_path)
+            save_data = SaveFileData(full_path, {}, {}, {})
 
         # Normalize template_path by stripping .template extension for section name
         section_name = _normalize_template_path(template_path) if template_path else 'general'
 
-        if template_path:
+        if is_global:
+            # Create new immutable instance with updated global variables
+            merged_globals = save_data.globals_variables.copy()
+            merged_globals.update(variables)
+            new_save_data = SaveFileData(
+                save_data.path,
+                merged_globals,
+                save_data.general_variables,
+                save_data.template_sections
+            )
+        elif template_path:
             # Create new immutable instance with updated template section
             # Merge existing template section variables with new ones
             new_template_sections = save_data.template_sections.copy()
@@ -287,6 +317,7 @@ class SaveFileManager:
             new_template_sections[section_name] = merged_template_vars
             new_save_data = SaveFileData(
                 save_data.path,
+                save_data.globals_variables,
                 save_data.general_variables,
                 new_template_sections
             )
@@ -297,6 +328,7 @@ class SaveFileManager:
             merged_general.update(variables)
             new_save_data = SaveFileData(
                 save_data.path,
+                save_data.globals_variables,
                 merged_general,
                 save_data.template_sections
             )
