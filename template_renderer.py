@@ -78,22 +78,14 @@ class HighlightUndefined(jinja2.runtime.Undefined):
 
 class ColorFormatter:
     """Convert template color syntax to ANSI escape codes."""
-    
-    COLORS = {
-        'black': Fore.BLACK, 'red': Fore.RED, 'green': Fore.GREEN,
-        'yellow': Fore.YELLOW, 'blue': Fore.BLUE, 'magenta': Fore.MAGENTA,
-        'cyan': Fore.CYAN, 'white': Fore.WHITE, 'orange': '\033[38;5;208m'
-    }
-    
-    BG_COLORS = {
-        'bg:black': Back.BLACK, 'bg:red': Back.RED, 'bg:green': Back.GREEN,
-        'bg:yellow': Back.YELLOW, 'bg:blue': Back.BLUE, 
-        'bg:magenta': Back.MAGENTA, 'bg:cyan': Back.CYAN, 'bg:white': Back.WHITE
-    }
-    
+
     def __init__(self):
         if configuration.COLOR_OUTPUT_ENABLED:
             colorama.init()
+
+        # Load color mappings from configuration
+        self.COLORS = configuration.ANSI_COLORS
+        self.BG_COLORS = configuration.ANSI_BG_COLORS
         
         # Separate patterns for different tag types
         self.FG_PATTERN = re.compile(
@@ -120,15 +112,15 @@ class ColorFormatter:
             # Check if the line (after stripping leading whitespace) starts with #
             stripped = line.lstrip()
             if stripped.startswith('#'):
-                # Wrap the entire line with [green]...[/green] tags
+                # Wrap the entire line with color tags from configuration
                 # Keep line ending outside the tags to avoid recursion issues
                 # Check CRLF before LF since CRLF also ends with LF
                 if line.endswith('\r\n'):
-                    processed_lines.append(f'[green]{line[:-2]}[/green]\r\n')
+                    processed_lines.append(f'[{configuration.COLOR_HASH_LINE}]{line[:-2]}[/{configuration.COLOR_HASH_LINE}]\r\n')
                 elif line.endswith('\n'):
-                    processed_lines.append(f'[green]{line[:-1]}[/green]\n')
+                    processed_lines.append(f'[{configuration.COLOR_HASH_LINE}]{line[:-1]}[/{configuration.COLOR_HASH_LINE}]\n')
                 else:
-                    processed_lines.append(f'[green]{line}[/green]')
+                    processed_lines.append(f'[{configuration.COLOR_HASH_LINE}]{line}[/{configuration.COLOR_HASH_LINE}]')
             else:
                 processed_lines.append(line)
 
@@ -651,25 +643,25 @@ class TemplateRenderer:
         def color_filter(value, color_name):
             if not configuration.COLOR_OUTPUT_ENABLED:
                 return str(value)
-            color = ColorFormatter.COLORS.get(color_name.lower())
+            color = configuration.ANSI_COLORS.get(color_name.lower())
             if color:
                 return f"{color}{value}{Style.RESET_ALL}"
             return str(value)
-        
+
         def bgcolor_filter(value, color_name):
             if not configuration.COLOR_OUTPUT_ENABLED:
                 return str(value)
             bg_key = f'bg:{color_name.lower()}'
-            bg_color = ColorFormatter.BG_COLORS.get(bg_key)
+            bg_color = configuration.ANSI_BG_COLORS.get(bg_key)
             if bg_color:
                 return f"{bg_color}{value}{Style.RESET_ALL}"
             return str(value)
-        
+
         def bold_filter(value):
             if not configuration.COLOR_OUTPUT_ENABLED:
                 return str(value)
             return f"{Style.BRIGHT}{value}{Style.RESET_ALL}"
-        
+
         env.filters['color'] = color_filter
         env.filters['bgcolor'] = bgcolor_filter
         env.filters['bold'] = bold_filter

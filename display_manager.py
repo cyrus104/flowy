@@ -15,7 +15,8 @@ from typing import List, Optional, Tuple
 from configuration import (
     AUTO_DETECT_WIDTH, DEFAULT_WIDTH, WORD_WRAP_ENABLED,
     PRESERVE_FORMATTING_ON_WRAP, MAX_TABLE_COLUMN_WIDTH,
-    MIN_TABLE_COLUMN_WIDTH, TRUNCATE_INDICATOR
+    MIN_TABLE_COLUMN_WIDTH, TRUNCATE_INDICATOR, COLOR_NO_DATA,
+    COLOR_TABLE_HEADER
 )
 
 
@@ -197,14 +198,14 @@ class DisplayManager:
             Formatted table string
         """
         if not rows and not headers:
-            return "[yellow]No data[/yellow]"
-        
+            return f"[{COLOR_NO_DATA}]No data[/{COLOR_NO_DATA}]"
+
         if not rows:
-            return "[yellow]No data[/yellow]"
-        
+            return f"[{COLOR_NO_DATA}]No data[/{COLOR_NO_DATA}]"
+
         num_columns = len(headers)
         if num_columns == 0:
-            return "[yellow]No columns defined[/yellow]"
+            return f"[{COLOR_NO_DATA}]No columns defined[/{COLOR_NO_DATA}]"
         
         # Calculate available width (accounting for separators)
         separator_width = (num_columns - 1) * 2  # Two spaces between columns
@@ -272,6 +273,10 @@ class DisplayManager:
         header_parts = []
         for i, header in enumerate(headers):
             width = column_widths[i]
+            # Apply color formatting if COLOR_TABLE_HEADER is set
+            if COLOR_TABLE_HEADER:
+                header = f"[{COLOR_TABLE_HEADER}]{header}[/{COLOR_TABLE_HEADER}]"
+
             # Truncate if needed
             if self._measure_visible_length(header) > width:
                 truncated = self._truncate_with_indicator(header, width)
@@ -280,7 +285,7 @@ class DisplayManager:
                 # Pad to width
                 padding = width - self._measure_visible_length(header)
                 header_parts.append(header + " " * padding)
-        
+
         header_line = "  ".join(header_parts)
         lines.append(header_line)
         

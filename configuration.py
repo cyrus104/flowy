@@ -215,3 +215,102 @@ SHOW_UNDEFINED_SUMMARY = True
 Display summary of undefined variables encountered after rendering.
 Helps users identify which variables need to be set for complete output.
 """
+
+
+# ============================================================================
+# Color Configuration
+# ============================================================================
+# All colors use markup syntax (e.g., 'red', 'green', 'cyan', 'orange', 'white dim', 'bold')
+# These can be customized by users. Note: 'orange' uses custom ANSI code '\033[38;5;208m'
+
+# Prompt Colors
+COLOR_PROMPT_MAIN = ''
+"""Color for the main 'flowy' part of the prompt (default: no color/white)"""
+
+COLOR_PROMPT_TEMPLATE = 'orange'
+"""Color for the template name in prompt (default: 'orange')"""
+
+PROMPT_STYLE = {'prompt': '#a5a5a5 bold'}
+"""Style dict for prompt_toolkit (default: {'prompt': '#a5a5a5 bold'})"""
+
+# Message Colors
+COLOR_ERROR = 'red'
+"""Error messages (default: 'red')"""
+
+COLOR_ERROR_BOLD = 'red'
+"""Bold error prefix (default: 'red')"""
+
+COLOR_SUCCESS = 'green'
+"""Success messages (default: 'green')"""
+
+COLOR_INFO = 'cyan'
+"""Informational messages (default: 'cyan')"""
+
+COLOR_WARNING = 'yellow'
+"""Warning messages (default: 'yellow')"""
+
+# Display Colors
+COLOR_SECTION_HEADER = ''
+"""Section headers in ls command (default: no color/white)"""
+
+COLOR_TABLE_HEADER = ''
+"""Table column headers (default: no color/white)"""
+
+COLOR_NO_DATA = 'yellow'
+"""'No data' messages (default: 'yellow')"""
+
+COLOR_HELP_COMMAND = 'cyan'
+"""Command names in help (default: 'cyan')"""
+
+COLOR_HELP_BOLD = 'bold'
+"""Bold text in help (default: 'bold')"""
+
+COLOR_TIP = 'green'
+"""Tip messages (default: 'green')"""
+
+# Variable Source Colors (for ls command)
+COLOR_VAR_GLOBAL = 'green'
+"""Global variables (default: 'green')"""
+
+COLOR_VAR_GENERAL = 'blue'
+"""General section variables (default: 'blue')"""
+
+COLOR_VAR_TEMPLATE = 'orange'
+"""Template-specific variables (default: 'orange')"""
+
+COLOR_VAR_DEFAULT = 'white dim'
+"""Default values (default: 'white dim')"""
+
+COLOR_VAR_UNSET = ''
+"""Unset variables (default: empty string)"""
+
+# Special Colors
+COLOR_HASH_LINE = 'green'
+"""Lines starting with # (default: 'green')"""
+
+COLOR_GOODBYE = 'green'
+"""Exit message (default: 'green')"""
+
+COLOR_CANCELLED = 'red'
+"""Cancelled operation (default: 'red')"""
+
+COLOR_VALIDATION_SUCCESS = 'green'
+"""Validation success (default: 'green')"""
+
+COLOR_VALIDATION_ERROR = 'red'
+"""Validation errors (default: 'red')"""
+
+# ColorFormatter ANSI Mappings
+ANSI_COLORS = {
+    'black': '\033[30m', 'red': '\033[31m', 'green': '\033[32m',
+    'yellow': '\033[33m', 'blue': '\033[34m', 'magenta': '\033[35m',
+    'cyan': '\033[36m', 'white': '\033[37m', 'orange': '\033[38;5;208m'
+}
+"""Dictionary mapping color names to ANSI codes (replaces ColorFormatter.COLORS)"""
+
+ANSI_BG_COLORS = {
+    'bg:black': '\033[40m', 'bg:red': '\033[41m', 'bg:green': '\033[42m',
+    'bg:yellow': '\033[43m', 'bg:blue': '\033[44m',
+    'bg:magenta': '\033[45m', 'bg:cyan': '\033[46m', 'bg:white': '\033[47m'
+}
+"""Dictionary mapping bg color names to ANSI codes (replaces ColorFormatter.BG_COLORS)"""

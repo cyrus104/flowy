@@ -166,13 +166,102 @@ class ShellCompleter(Completer):
                         yield Completion(path, start_position=-len(word))
         
         elif command in ['set', 'unset']:
-            # First arg: variable name completion
-            if len(args) == 1 and not text_before_cursor.endswith(' '):
-                vars = _get_variable_names(self.template_def)
-                for var in vars:
-                    if var.startswith(word):
-                        yield Completion(var, start_position=-len(word))
-        
+            # Check if -g or --global flag is present in args
+            has_global_flag = '-g' in args or '--global' in args
+
+            # Handle flag completion when user types "set -" or "unset -"
+            if len(args) == 1 and args[0].startswith('-') and not text_before_cursor.endswith(' '):
+                # Complete to -g or --global
+                for flag in ['-g', '--global']:
+                    if flag.startswith(word):
+                        yield Completion(flag, start_position=-len(word))
+                return
+
+            # Filter out flags to get actual variable arguments
+            filtered_args = [arg for arg in args if arg not in ('-g', '--global')]
+
+            if command == 'set':
+                # Handle variable name completion
+                # For global variables, suggest existing global variables from state_manager
+                # For template variables, suggest variables from template definition
+                if len(filtered_args) == 0 and text_before_cursor.endswith(' '):
+                    # User typed "set -g " or "set " - complete variable names
+                    if has_global_flag:
+                        # For globals, suggest existing global variables (allowing arbitrary names)
+                        from state_manager import state_manager
+                        global_vars = state_manager.get_all_global_variables().keys()
+                        for var in global_vars:
+                            yield Completion(var, start_position=0)
+                    else:
+                        # For template variables, suggest template-defined variables
+                        vars = _get_variable_names(self.template_def)
+                        for var in vars:
+                            yield Completion(var, start_position=0)
+                elif len(filtered_args) == 1 and not text_before_cursor.endswith(' '):
+                    # User is typing variable name
+                    if has_global_flag:
+                        # For globals, suggest existing global variables (allowing arbitrary names)
+                        from state_manager import state_manager
+                        global_vars = state_manager.get_all_global_variables().keys()
+                        for var in global_vars:
+                            if var.startswith(word):
+                                yield Completion(var, start_position=-len(word))
+                    else:
+                        # For template variables, suggest template-defined variables
+                        vars = _get_variable_names(self.template_def)
+                        for var in vars:
+                            if var.startswith(word):
+                                yield Completion(var, start_position=-len(word))
+                # Second arg for set: variable option completion (only for template variables)
+                elif len(filtered_args) >= 1 and not has_global_flag:
+                    # Two cases for completing option values:
+                    # 1. User has typed space after variable name (e.g., "set var_name ")
+                    has_space_after_var_name = len(filtered_args) == 1 and text_before_cursor.endswith(' ')
+                    # 2. User is typing the option value (e.g., "set var_name opt")
+                    is_typing_option_value = len(filtered_args) == 2
+
+                    if has_space_after_var_name or is_typing_option_value:
+                        # Get the variable name from the first filtered argument
+                        var_name = filtered_args[0]
+                        # Get options for this variable (only for template variables)
+                        options = _get_variable_options(self.template_def, var_name)
+                        # Yield completions for matching options
+                        for option in options:
+                            option_str = str(option)
+                            if option_str.startswith(word):
+                                yield Completion(option_str, start_position=-len(word))
+
+            elif command == 'unset':
+                # Handle variable name completion
+                # Case 1: "unset -g " (no variable yet, trailing space) -> complete variable names
+                # Case 2: "unset -g glo" (typing variable name) -> complete variable names
+                if len(filtered_args) == 0 and text_before_cursor.endswith(' '):
+                    # User typed "unset -g " - complete appropriate variable names
+                    if has_global_flag:
+                        from state_manager import state_manager
+                        global_vars = state_manager.get_all_global_variables().keys()
+                        for var in global_vars:
+                            yield Completion(var, start_position=0)
+                    else:
+                        vars = _get_variable_names(self.template_def)
+                        for var in vars:
+                            yield Completion(var, start_position=0)
+                elif len(filtered_args) == 1 and not text_before_cursor.endswith(' '):
+                    # User is typing variable name
+                    if has_global_flag:
+                        # For unset -g, complete only to global variable names
+                        from state_manager import state_manager
+                        global_vars = state_manager.get_all_global_variables().keys()
+                        for var in global_vars:
+                            if var.startswith(word):
+                                yield Completion(var, start_position=-len(word))
+                    else:
+                        # For unset (without -g), complete to template variable names
+                        vars = _get_variable_names(self.template_def)
+                        for var in vars:
+                            if var.startswith(word):
+                                yield Completion(var, start_position=-len(word))
+
         elif command == 'unsetglobal':
             # First arg: global variable name completion
             if len(args) == 1 and not text_before_cursor.endswith(' '):
@@ -181,24 +270,6 @@ class ShellCompleter(Completer):
                 for var in global_vars:
                     if var.startswith(word):
                         yield Completion(var, start_position=-len(word))
-            # Second arg for set: variable option completion
-            elif command == 'set' and len(args) >= 1:
-                # Two cases for completing option values:
-                # 1. User has typed space after variable name (e.g., "set var_name ")
-                has_space_after_var_name = len(args) == 1 and text_before_cursor.endswith(' ')
-                # 2. User is typing the option value (e.g., "set var_name opt")
-                is_typing_option_value = len(args) == 2
-
-                if has_space_after_var_name or is_typing_option_value:
-                    # Get the variable name from the first argument
-                    var_name = args[0]
-                    # Get options for this variable
-                    options = _get_variable_options(self.template_def, var_name)
-                    # Yield completions for matching options
-                    for option in options:
-                        option_str = str(option)
-                        if option_str.startswith(word):
-                            yield Completion(option_str, start_position=-len(word))
         
         elif command == 'help' or command in COMMAND_ALIASES.get('help', []):
             # First arg: command name completion (works for help, h, and ?)

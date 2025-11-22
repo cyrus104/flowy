@@ -24,6 +24,8 @@ then drops into interactive mode for further commands.
 import argparse
 import sys
 from interactive_shell import InteractiveShell
+from configuration import COLOR_WARNING, COLOR_ERROR
+from template_renderer import ColorFormatter
 
 
 def parse_arguments():
@@ -90,12 +92,14 @@ def main():
         else:
             # Normal interactive mode
             shell.start()
-            
+
     except KeyboardInterrupt:
-        print("\n[yellow]Interrupted by user[/yellow]")
+        color_formatter = ColorFormatter()
+        print(color_formatter.format(f"\n[{COLOR_WARNING}]Interrupted by user[/{COLOR_WARNING}]"))
         sys.exit(0)
     except Exception as e:
-        print(f"[red]Error: {e}[/red]")
+        color_formatter = ColorFormatter()
+        print(color_formatter.format(f"[{COLOR_ERROR}]Error: {e}[/{COLOR_ERROR}]"))
         sys.exit(1)
 
 
